@@ -709,11 +709,9 @@ private:
     typedef Tail<node_type_, node_u_type_, array_type_, array_u_type_, data_type_, length_func_> _TAIL_;
     _DA_ _da;
     _TAIL_  _tail;
-    bool is_dirty;
-    bool is_readonly;
 
 public:
-    explicit DATrie(bool readonly=false):is_dirty(false),is_readonly(readonly) { }
+    explicit DATrie() { }
     _TAIL_ & getTail() { return _tail; }
 
     /**
@@ -726,7 +724,6 @@ public:
      *         be appended. If it does, its current data will be overwritten.
      */
     inline bool add(const node_type_ * key, data_type_ val) {
-        if (is_readonly) return false;
         return storeConditionally(key, val, true);
     }
     /**
@@ -759,7 +756,6 @@ public:
         _da.setBase(s, TRIE_INDEX_ERROR);
         _da.prune(s);
 
-        is_dirty = true;
         return true;
     }
 
@@ -816,8 +812,7 @@ public:
         return false;
     }
 
-    bool save(const string & filepath) {
-        ofstream outf(filepath.c_str(), ios::binary|ios::out);
+    bool write(ofstream & outf) {
         if(!_da.write(outf)){
             return false;
         }
@@ -825,15 +820,11 @@ public:
         if(!_tail.write(outf)){
             return false;
         }
-
-        outf.flush();
-        outf.close();
         cout<<"save datrie finished"<<endl;
         return true;
     }
 
-    bool open(const string &filepath) {
-        ifstream inf(filepath.c_str(), ios::binary|ios::in);
+    bool read(ifstream & inf) {
         if(!_da.read(inf)){
             return false;
         }
@@ -887,7 +878,6 @@ private:
         // duplicated key, overwrite val if flagged
         if (!is_overwrite) { return false; }
         _tail.setData(t, data);
-        is_dirty = true;
         return true;
     }
 
@@ -906,7 +896,6 @@ private:
         new_tail = _tail.addSuffix(suffix);
         _tail.setData(new_tail, data);
         setTailIndex(new_da, new_tail);
-        is_dirty = true;
         return true;
     }
 

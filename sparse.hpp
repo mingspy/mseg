@@ -20,6 +20,8 @@
 #include <iostream>
 #include <ostream>
 #include <cassert>
+#include <vecotor>
+#include <algorithm>
 
 using namespace std;
 namespace mingspy
@@ -43,7 +45,7 @@ public:
         int id;
         T val;
     };
-private:
+protected:
     int _size;
     Cell * _cells;
     mutable T _sum;
@@ -100,34 +102,6 @@ public:
         _cells[position].val = val;
         modified = true;
     }
-    /**
-    * Locates the greatest index that is not greater than the given index.
-    *
-    * @return the internal index of the id. Returns -1 if not found.
-    */
-    int locateId(int id) const
-    {
-        int min = 0, max = _size - 1;
-        if (max == -1) { return -1;}
-
-        // Binary search
-        while ((_cells[min].id <= id) && (_cells[max].id >= id)) {
-            int current = (max + min) / 2;
-            if (_cells[current].id > id) {
-                max = current - 1;
-            } else if (_cells[current].id < id) {
-                min = current + 1;
-            } else {
-                return current;
-            }
-        }
-
-        if (_cells[max].id < id) {
-            return max;
-        } else {
-            return min - 1;
-        }
-    }
 
     T sum() const
     {
@@ -179,6 +153,11 @@ public:
         modified = true;
     }
 
+	int addAttrFreq(int id, const T & inc){
+		T s = getAttrValue(id) + inc;
+		setAttrVal(id, s);
+		return s;
+	}
     /**
      * Returns an instance's attribute value in internal format.
      *
@@ -215,6 +194,37 @@ public:
         }
         return old_value;
     }
+	
+	void merge( const SparseVector & refer){
+		if(refer._size == 0) return;
+		if(_size == 0){
+			copyOf(refer);
+			return;
+		}
+		vecotor<int> ids;
+		for( int i = 0; i < _size; i++){
+			if(_cells[i].val != (T)0 && find(ids.begin(), ids.end(), _cells[i].id) == ids.end()){
+				ids.push_back(_cells[i].id);
+			}
+		}
+		for( int i = 0; i < refer._size; i++){
+			if(refer._cells[i].val != (T)0 && find(ids.begin(), ids.end(), refer._cells[i].id) == ids.end()){
+				ids.push_back(refer._cells[i].id);
+			}
+		}
+		sort(ids.begin(), ids.end());
+		Cell * tmp = reinterpret_cast<Cell *>(malloc(sizeof(Cell)*ids.size()));
+		_sum = (T)0;
+		for(int i = 0; i < ids.size(); i++){
+			tmp[i].id = ids[i];
+			tmp[i].val = getAttrValue(tmp[i].id) + refer.getAttrValue(tmp[i].id);
+			_sum += tmp[i].val;
+		}
+		free(_cell);
+		_cell = tmp;
+		_size = ids.size();
+		modified = false;
+	}
 
     friend ostream & operator<< (ostream & out, const SparseVector & ins)
     {
@@ -225,65 +235,35 @@ public:
         out<<"]}";
         return out;
     }
-#if 0
-    static void DoWriteSIToFile(FILE * file, const SparseVector<T> * data)
-    {
-        long old_pos = ftell(file);
-        Serializer serializer(file);
-        if(data != NULL) {
-            if(!serializer.writeInt32(data->m_NumValues)) {
-                goto exit_write;
-            }
-
-            if(data->m_NumValues > 0) {
-                if(!serializer.write(data->m_Indices, sizeof(int), data->m_NumValues)) {
-                    goto exit_write;
-                }
-
-                if(!serializer.write(data->m_AttValues, sizeof(T), data->m_NumValues)) {
-                    goto exit_write;
-                }
-            }
-
-            return;
-        }
-
-exit_write:
-        fseek(file, old_pos, SEEK_SET);
-        assert(false);
-    }
-
-    static SparseVector<T> * DoReadSIFromFile(FILE * file)
-    {
-        long old_pos = ftell(file);
-        Serializer serializer(file);
-        int num = serializer.readInt32();
-        SparseVector<T> * inst = new SparseVector<T>();
-
-        inst->_sumVs = ZERO;
-        inst->m_NumValues = num;
-        if(num > 0) {
-            inst->m_Indices = new int[num];
-            if(!serializer.read(inst->m_Indices, sizeof(int), inst->m_NumValues)) {
-                goto exit_read_inst;
-            }
-
-            inst->m_AttValues = new T[num];
-            if(!serializer.read(inst->m_AttValues, sizeof(T), inst->m_NumValues)) {
-                goto exit_read_inst;
-            }
-        }
-
-        return inst;
-exit_read_inst:
-        delete inst;
-exit_read:
-        fseek(file, old_pos, SEEK_SET);
-        assert(false);
-        return NULL;
-    }
-#edif
 private:
+
+    /**
+    * Locates the greatest index that is not greater than the given index.
+    * @return the internal index of the id. Returns -1 if not found.
+    */
+    int locateId(int id) const
+    {
+        int min = 0, max = _size - 1;
+        if (max == -1) { return -1;}
+
+        // Binary search
+        while ((_cells[min].id <= id) && (_cells[max].id >= id)) {
+            int current = (max + min) / 2;
+            if (_cells[current].id > id) {
+                max = current - 1;
+            } else if (_cells[current].id < id) {
+                min = current + 1;
+            } else {
+                return current;
+            }
+        }
+
+        if (_cells[max].id < id) {
+            return max;
+        } else {
+            return min - 1;
+        }
+    }
     void copyOf(const SparseVector & refer)
     {
         int num = 0;

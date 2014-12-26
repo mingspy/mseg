@@ -225,10 +225,13 @@ void press_test(const string &filepath){
     cout<<"add items :"<<words.size()
         <<" used:" <<(add_time/CLOCKS_PER_SEC)
         <<" find used:"<<(find_time/CLOCKS_PER_SEC)<<endl;
-    trie.save("./tt.da");
+	ofstream outf("./tt.da", ios::binary|ios::out);
+    trie.save(outf);
+	outf.close();
     CharTrie trie2;
     cout<<"loading trie"<<endl;
-    trie2.open("./tt.da");
+	ifstream inf("./tt.da", ios::binary|ios::in);
+    trie2.open(inf);
     find_errors = 0;
     start = clock();
     for(map<string,int>::iterator it = words.begin(); it != words.end(); it++){

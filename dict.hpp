@@ -19,7 +19,7 @@
 
 #include <iostream>
 #include <string>
-#include <string>
+#include <climit>
 #include "datrie.hpp"
 #include "sparse.hpp"
 
@@ -28,42 +28,139 @@ using namespace std;
 namespace mingspy
 {
 
-const wstring  NATURE_UNDEF = L"UDF";
-const wstring NATURE_FREQTOTAL=L"FREQTOL";
 const int MAX_WORD_LEN = 200;
+const string UDF = "UDF";
+const string INNER_CODING = "utf-8"; // inner coding using utf-8.
 class Dictionary
 {
+public:
+	typedef SparseVector<int> WordInfo;
+	typedef map<string, int>::iterator NIT;
+	typedef map<int, SparseVector<int>>::iterator WIT;	
 protected:
     CharTrie datrie;
-    vector<wstring> natures;
-    map<wstring, int> nature_index_table;
-    map<int, SparseVector<int>> words_info_table;
-    double TOTAL_FREQ;
+//    vector<string> natures;
+//    map<string, int> nature_index_table;
+	map<int, WordInfo> words_info_table;
+	double total_freq;
+	string name;
+	string filepath;
     bool readonly;
+	int max_word_id;
+
 public:
-    explicit Dictionary():readonly(false)
+    explicit Dictionary():readonly(false),max_word_id(0),total_freq(0.0)
     {
     }
-
-    // read binary data from a file.
-    explicit Dictionary(const string & file)
+	
+	inline bool addWord(const string & word)
     {
+		int id = 0;
+		if( datrie.find(word.c_str(),&id){
+			return false;
+		}
+        return datrie.add(word, ++max_word_id);
+    }
+	
+	inline int getWordId(const string & word)
+    {
+		int id = 0;
+		if( datrie.find(word.c_str(),&id){
+			return id;
+		}
+        return -1;
+    }
+	
+	bool addWordInfo(const string & word, const WordInfo & info)
+    {
+		int id = getWordId(word);
+		if (id <= 0){
+			if(!addWord(word)){
+				return false;
+			}
+			id = getWordId(word);
+		}
+        WIT it = words_info_table.find(id);
+		if(it != words_info_table.end()){
+			it->second.merge(info);
+			return true;
+		}
+		words_info_table[id] = info;
+		total_freq += info.sum();
+		return true;
     }
 
-    bool addNature(const wstring& nature)
+    WordInfo * getWordInfo(const string & word)
     {
-        if(nature_index.find(nature) != nature_index.end()) {
-            return false;
+        int id = 0;
+		if( datrie.find(word.c_str(),&id){
+			WIT it = words_info_table.find(id);
+			if(it != words_info_table.end()){
+				return &(it->second);
+			}
+		}
+		
+		return NULL;
+    }
+	
+	int addAttrFreq(const string & word, int attrId, int freq) {
+        int id = getWordId(word);
+		if (id <= 0){
+			if(!addWord(word)){
+				return INT_MIN;
+			}
+			id = getWordId(word);
+		}
+		total_freq += freq;
+        return words_info_table[id].addAttrFreq(attrId,freq);
+    }
+	
+	int getAttrFreq(const string & word, int attrId) const {
+        const WordInfo * pInfo = getWordInfo(word);
+        if(pInfo != NULL) {
+            return pInfo->getAttrValue(attrId);
+        }
+
+        return 0;
+    }
+
+    int getWordTotalFreq(const string & word) const
+    {
+        const WordInfo * pInfo = getWordInfo(word);
+        if(pInfo != NULL) {
+            return pInfo->sum();
+        }
+
+        return 0;
+    }
+
+    double getWordProb(const string & word) const
+    {
+        return (getTotalFreq(word) + 1.0) / (total_freq + 10000);
+    }
+	
+    bool hasPrefix(const string & prefix) const
+    {
+        return datrie.hasPrefix(prefix);
+    }
+	
+/*
+    int addNature(const string& nature)
+    {
+		NIT it = nature_index_table.find(nature);
+        if( it != nature_index_table.end()) {
+            return it->second;
         }
         natures.push_back(nature);
-        nature_index[nature] = natures.size() - 1;
-        return true;
+        nature_index_table[nature] = natures.size() - 1;
+        return natures.size() - 1;
     }
 
-    int getNatureIndex(const wstring &nature) const
+    int getNatureIndex(const string &nature) const
     {
-        if(nature_index.find(nature) != nature_index.end()) {
-            return nature_index.find(nature)->second;
+		NIT it = nature_index_table.find(nature);
+        if(it != nature_index_table.end()) {
+            return it->second;
         }
         return -1;
     }
@@ -73,62 +170,18 @@ public:
         if(index < natures.size()) {
             return natures[index];
         }
-        return NATURE_UNDEF;
-    }
-
-    bool addWordInfo(const wstring & word, WordNature * info)
-    {
-        return datrie.add(word, info);
-    }
-
-    virtual const WordNature * getWordInfo(const wstring & word) const
-    {
-        return (const WordNature *)datrie.retrieve(word);
-    }
-
-    int getNatureFreq(const wstring & word, const wstring & nature) const
-    {
-        const WordNature * pnatures = getWordInfo(word);
-        if(pnatures != NULL) {
-            int idx = getNatureIndex(nature);
-            if(idx >= 0) {
-                return pnatures->getAttrValue(idx);
-            }
-        }
-
-        return 0;
-    }
-
-    int getTotalFreq(const wstring & word) const
-    {
-        const WordNature * pnatures = getWordInfo(word);
-        if(pnatures != NULL) {
-            return pnatures->sumOfValues();
-        }
-
-        return 0;
-    }
-
-    double getProb(const wstring & word) const
-    {
-        return (getTotalFreq(word) + 1.0) / TOTAL_FREQ;
-    }
-    virtual bool existPrefix(const wstring & prefix) const
-    {
-        return datrie.containsPrefix(prefix);
+        return UDF;
     }
 
     bool writeToFile(const string & file)
     {
     }
-
+*/
 private:
     Dictionary(const Dictionary &);
-
-
-
 };
 
+#if 0
 class NatureProbTable:public Dictionary
 {
 public:
@@ -197,7 +250,7 @@ public:
     {
     }
 
-    virtual const WordNature * getWordInfo(const wstring & word) const
+    virtual const WordNature * getWordInfo(const string & word) const
     {
         const WordNature * pinfo =  (const WordNature *)datrie.retrieve(word.c_str());
         if(pinfo == NULL) {
@@ -207,7 +260,7 @@ public:
         return pinfo;
     }
 
-    virtual bool existPrefix(const wstring & prefix) const
+    virtual bool existPrefix(const string & prefix) const
     {
         if(datrie.containsPrefix(prefix)) {
             return true;
@@ -229,12 +282,12 @@ public:
 
             cout<<"\rloading user dictionary:"<<files[i].c_str();
             UTF8FileReader reader(files[i]);
-            wstring * line;
+            string * line;
             while((line = reader.getLine())) {
-                wstring::size_type wordIndex = line->find_first_of(wordSeperator);
-                wstring word;
-                wstring wordinfo;
-                if(wordIndex == wstring::npos) {
+                string::size_type wordIndex = line->find_first_of(wordSeperator);
+                string word;
+                string wordinfo;
+                if(wordIndex == string::npos) {
                     word = *line;
                 } else {
                     word = line->substr(0, wordIndex);
@@ -251,17 +304,17 @@ public:
                     }
                 } else {
                     WordNature * info = new WordNature();
-                    vector<wstring> infos;
+                    vector<string> infos;
                     split(wordinfo, natureSeperator, infos);
                     for(int i = 0; i < infos.size(); i++) {
-                        wstring::size_type freqIndex = infos[i].find_first_of(freqSeperator);
-                        wstring nature;
+                        string::size_type freqIndex = infos[i].find_first_of(freqSeperator);
+                        string nature;
                         int d_freq = 1;
-                        if(freqIndex == wstring::npos) {
+                        if(freqIndex == string::npos) {
                             nature = infos[i];
                         } else {
                             nature = infos[i].substr(0,freqIndex);
-                            wstring freq = infos[i].substr(freqIndex + 1);
+                            string freq = infos[i].substr(freqIndex + 1);
                             d_freq = wcstol(freq.c_str(), NULL, 10);
                         }
 
@@ -301,5 +354,5 @@ private:
 protected:
     DATrie user_datrie;
 };
-
+#endif 
 }
