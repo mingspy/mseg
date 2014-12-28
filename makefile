@@ -10,7 +10,7 @@ CC=g++ -O3
 
 #libJSegJNI.so:JSegJNI.cpp
 #	$(CC) -fPIC -shared JSegJNI.cpp -o libJSegJNI.so 
-test:testda.cpp
+test:testda.cpp dict.hpp datrie.hpp sparse.hpp
 	$(CC) testda.cpp -o test
 
 clean:
