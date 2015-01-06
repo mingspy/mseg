@@ -23,7 +23,8 @@
 #include "utils.hpp"
 
 using namespace std;
-int main(){
+int main()
+{
     mingspy::Builder builder;
     vector<string> files;
     getFiles("../data/people/",files);

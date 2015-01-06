@@ -29,324 +29,352 @@ using namespace std;
 
 namespace mingspy
 {
-    const int MAX_WORD_LEN = 200;
-    const string UDF = "UDF";
-    const string INNER_CODING = "utf-8"; // inner coding using utf-8.
-    class Dictionary
+const int MAX_WORD_LEN = 200;
+const string UDF = "UDF";
+const string INNER_CODING = "utf-8"; // inner coding using utf-8.
+class Dictionary
+{
+public:
+    typedef SparseVector<int> FreqInfo;
+    typedef map<string, int>::iterator NIT;
+    typedef struct WordInfo {
+        char * word;
+        int id;
+        FreqInfo * info;
+    } WordInfo;
+    typedef map<int, WordInfo>::iterator WIT;
+    typedef map<int, WordInfo>::const_iterator CWIT;
+protected:
+    CharTrie datrie;
+    mutable map<int, WordInfo> words_info_table;
+    int total_freq;
+    string name;
+    string filepath;
+    //bool readonly;
+    int max_word_id;
+
+public:
+    explicit Dictionary():max_word_id(0),total_freq(0)
     {
-    public:
-        typedef SparseVector<int> FreqInfo;
-        typedef map<string, int>::iterator NIT;
-        typedef struct WordInfo{
-            char * word;
-			int id;
-            FreqInfo * info;
-        } WordInfo;
-        typedef map<int, WordInfo>::iterator WIT;
-        typedef map<int, WordInfo>::const_iterator CWIT;
-    protected:
-        CharTrie datrie;
-        mutable map<int, WordInfo> words_info_table;
-        int total_freq;
-        string name;
-        string filepath;
-        //bool readonly;
-        int max_word_id;
-        
-    public:
-        explicit Dictionary():max_word_id(0),total_freq(0)
-        {
-        }
-        
-        ~Dictionary(){
-            clear();
-        }
-		inline void setMaxWordId(int id){max_word_id = id;}
-		inline int getMaxWordId() const {return max_word_id;}
-        inline int addWord(const string & word)
-        {
-            int wordid = 0;
-            if(datrie.find(word.c_str(),&wordid)){
-                return wordid;
-            }
-            wordid = max_word_id + 1;
-            if (!datrie.add(word.c_str(), wordid)){
-                return -1;
-            }
-            
-            WordInfo info;
-            int sz = word.length()+1;
-            info.word = new char[sz];
-            memcpy(info.word, word.c_str(), sz * sizeof(char));
-			info.id = wordid;
-            info.info = NULL;
-            words_info_table[wordid] = info;
-            max_word_id ++;
+    }
+
+    ~Dictionary()
+    {
+        clear();
+    }
+    inline void setMaxWordId(int id)
+    {
+        max_word_id = id;
+    }
+    inline int getMaxWordId() const
+    {
+        return max_word_id;
+    }
+    inline int addWord(const string & word)
+    {
+        int wordid = 0;
+        if(datrie.find(word.c_str(),&wordid)) {
             return wordid;
         }
-        
-        inline int getWordId(const string & word) const
-        {
-            int id = 0;
-            if(datrie.find(word.c_str(),&id)){
-                return id;
-            }
+        wordid = max_word_id + 1;
+        if (!datrie.add(word.c_str(), wordid)) {
             return -1;
         }
-        
-        bool addFreqInfo(const string & word, const FreqInfo & info)
-        {
-            int id = addWord(word);
-            if (id <= 0){
-                return false;
-            }
-            
-            if(words_info_table[id].info == NULL){
-                words_info_table[id].info = new FreqInfo(info);
-            }else{
-                words_info_table[id].info->merge(info);
-            }
-            total_freq += info.sum();
-            return true;
+
+        WordInfo info;
+        int sz = word.length()+1;
+        info.word = new char[sz];
+        memcpy(info.word, word.c_str(), sz * sizeof(char));
+        info.id = wordid;
+        info.info = NULL;
+        words_info_table[wordid] = info;
+        max_word_id ++;
+        return wordid;
+    }
+
+    inline int getWordId(const string & word) const
+    {
+        int id = 0;
+        if(datrie.find(word.c_str(),&id)) {
+            return id;
         }
-        
-        inline const WordInfo * getWordInfo(const string & word) const
-        {
-            int wordId = getWordId(word);
-            return getWordInfo(wordId);
+        return -1;
+    }
+
+    bool addFreqInfo(const string & word, const FreqInfo & info)
+    {
+        int id = addWord(word);
+        if (id <= 0) {
+            return false;
         }
-        
-        inline const WordInfo * getWordInfo(int wordId) const
-        {
-            CWIT it = words_info_table.find(wordId);
-            if (it != words_info_table.end()) {
-                return & (it->second);
-            }
+
+        if(words_info_table[id].info == NULL) {
+            words_info_table[id].info = new FreqInfo(info);
+        } else {
+            words_info_table[id].info->merge(info);
+        }
+        total_freq += info.sum();
+        return true;
+    }
+
+    inline const WordInfo * getWordInfo(const string & word) const
+    {
+        int wordId = getWordId(word);
+        return getWordInfo(wordId);
+    }
+
+    inline const WordInfo * getWordInfo(int wordId) const
+    {
+        CWIT it = words_info_table.find(wordId);
+        if (it != words_info_table.end()) {
+            return & (it->second);
+        }
+        return NULL;
+    }
+
+    inline const char * getWord(int wordId) const
+    {
+        const WordInfo * info = getWordInfo(wordId);
+        if (info) {
+            return info->word;
+        }
+        return NULL;
+    }
+
+    inline FreqInfo * getFreqInfo(const string & word) const
+    {
+        int id = getWordId(word);
+        if (id <= 0) {
             return NULL;
         }
-        
-        inline const char * getWord(int wordId) const{
-            const WordInfo * info = getWordInfo(wordId);
-            if (info) {
-                return info->word;
-            }
-            return NULL;
+
+        return words_info_table[id].info;
+    }
+
+    const FreqInfo * operator[](const string & word) const
+    {
+        return getFreqInfo(word);
+    }
+    int addAttrFreq(const string & word, const string & attr, int freq)
+    {
+        int id = addWord(word);
+        if (id <= 0) {
+            return INT_MIN;
         }
-        
-        inline FreqInfo * getFreqInfo(const string & word) const
-        {
-            int id = getWordId(word);
-            if (id <= 0) {
-                return NULL;
-            }
-            
-            return words_info_table[id].info;
+        int attrId = addWord(attr);
+        if (attrId <= 0) {
+            return INT_MIN;
         }
-        
-        const FreqInfo * operator[](const string & word) const{
-            return getFreqInfo(word);
+        return addAttrFreq(id, attrId, freq);
+    }
+    int addAttrFreq(const string & word, int attrId, int freq)
+    {
+        int id = addWord(word);
+        return addAttrFreq(id, attrId, freq);
+    }
+
+    int addAttrFreq(int id, int attrId, int freq)
+    {
+        if (id <= 0) {
+            return INT_MIN;
         }
-        int addAttrFreq(const string & word, const string & attr, int freq) {
-            int id = addWord(word);
-            if (id <= 0){
-                return INT_MIN;
-            }
-			int attrId = addWord(attr);
-            if (attrId <= 0){
-                return INT_MIN;
-            }
-            return addAttrFreq(id, attrId, freq);
+        if (!words_info_table[id].info) {
+            words_info_table[id].info = new FreqInfo();
         }
-        int addAttrFreq(const string & word, int attrId, int freq) {
-            int id = addWord(word);
-            return addAttrFreq(id, attrId, freq);
+        total_freq += freq;
+        return words_info_table[id].info->addAttrFreq(attrId,freq);
+    }
+    inline int getAttrFreq(const string & word, int attrId) const
+    {
+        int wordId = getWordId(word);
+        return getAttrFreq(wordId,attrId);
+    }
+    inline int getAttrFreq(const string & word, const string & attr) const
+    {
+        int wordId = getWordId(word);
+        int attrId = getWordId(attr);
+        return getAttrFreq(wordId,attrId);
+    }
+    inline int getAttrFreq(int wordId, int attrId) const
+    {
+        CWIT it = words_info_table.find(wordId);
+        if (it != words_info_table.end() && it->second.info != NULL) {
+            return it->second.info->getAttrValue(attrId);
         }
-		
-		int addAttrFreq(int id, int attrId, int freq) {
-            if (id <= 0){
-                return INT_MIN;
-            }
-            if (!words_info_table[id].info) {
-                words_info_table[id].info = new FreqInfo();
-            }
-            total_freq += freq;
-            return words_info_table[id].info->addAttrFreq(attrId,freq);
+        return 0;
+    }
+
+    int getWordFreq(const string & word) const
+    {
+        const FreqInfo * pInfo = getFreqInfo(word);
+        if(pInfo != NULL) {
+            return pInfo->sum();
         }
-        inline int getAttrFreq(const string & word, int attrId) const {
-            int wordId = getWordId(word);
-            return getAttrFreq(wordId,attrId);
+
+        return 0;
+    }
+
+    double getTotalFreq() const
+    {
+        return total_freq;
+    }
+
+    bool hasPrefix(const string & prefix) const
+    {
+        return datrie.hasPrefix(prefix.c_str());
+    }
+
+    inline string getName() const
+    {
+        return name;
+    }
+    inline void setName(const string & dictname)
+    {
+        this->name = dictname;
+    }
+    inline string getPath() const
+    {
+        return this->filepath;
+    }
+    bool open(const string & path)
+    {
+        ifstream inf(path.c_str(),ios::binary|ios::in);
+        if (!inf.good()) {
+            cerr<<"can't open dict:"<<path<<endl;
+            return false;
         }
-        inline int getAttrFreq(const string & word, const string & attr) const {
-            int wordId = getWordId(word);
-            int attrId = getWordId(attr);
-            return getAttrFreq(wordId,attrId);
+        filepath = path;
+        if(!inf.read(reinterpret_cast<char *> (&total_freq), sizeof(int))) {
+            return false;
         }
-        inline int getAttrFreq(int wordId, int attrId) const {
-            CWIT it = words_info_table.find(wordId);
-            if (it != words_info_table.end() && it->second.info != NULL) {
-                return it->second.info->getAttrValue(attrId);
-            }
-            return 0;
+        if(!inf.read(reinterpret_cast<char *> (&max_word_id), sizeof(int))) {
+            return false;
         }
-        
-        int getWordFreq(const string & word) const
-        {
-            const FreqInfo * pInfo = getFreqInfo(word);
-            if(pInfo != NULL) {
-                return pInfo->sum();
-            }
-            
-            return 0;
+        int sz;
+        if(!inf.read(reinterpret_cast<char *> (&sz), sizeof(int))) {
+            return false;
         }
-        
-        double getTotalFreq() const
-        {
-            return total_freq;
-        }
-        
-        bool hasPrefix(const string & prefix) const
-        {
-            return datrie.hasPrefix(prefix.c_str());
-        }
-        
-        inline string getName() const{ return name;}
-        inline void setName(const string & dictname){ this->name = dictname;}
-        inline string getPath() const{ return this->filepath;}
-        bool open(const string & path){
-            ifstream inf(path.c_str(),ios::binary|ios::in);
-            if (!inf.good()) {
-                cerr<<"can't open dict:"<<path<<endl;
+        if (sz) {
+            char buf[MAX_WORD_LEN];
+            if(!inf.read(buf, sz)) {
                 return false;
             }
-            filepath = path;
-            if(!inf.read(reinterpret_cast<char *> (&total_freq), sizeof(int))){
-                return false;
-            }
-            if(!inf.read(reinterpret_cast<char *> (&max_word_id), sizeof(int))){
-                return false;
-            }
-            int sz;
-            if(!inf.read(reinterpret_cast<char *> (&sz), sizeof(int))){
-                return false;
-            }
-            if (sz) {
-                char buf[MAX_WORD_LEN];
-                if(!inf.read(buf, sz)){
-                    return false;
-                }
-                name = buf;
-            }
-            if(!inf.read(reinterpret_cast<char *> (&sz), sizeof(int))){
-                return false;
-            }
-            int id;
-            WordInfo info;
-            for (int i = 0; i < sz; i++) {
-                if (!readinfo(inf,&id, &info)) {
-                    return false;
-                }
-                words_info_table[id] = info;
-            }
-            return datrie.read(inf);
-            
+            name = buf;
         }
-        bool save(const string & path){
-            ofstream outf(path.c_str(),ios::binary|ios::out);
-            if (!outf.good()) {
-                cerr<<"can't open dict:"<<path<<endl;
-                return false;
-            }
-            filepath = path;
-            if(!outf.write(reinterpret_cast<char *>(&total_freq), sizeof(int))){
-                return false;
-            }
-            if(!outf.write(reinterpret_cast<char *>(&max_word_id), sizeof(int))){
-                return false;
-            }
-            int sz = name.length();
-            if (sz != 0) {
-                sz ++;
-            }
-            if(!outf.write(reinterpret_cast<char *>(&sz), sizeof(int))){
-                return false;
-            }
-            if (sz) {
-                if(!outf.write(name.c_str(), sz)){
-                    return false;
-                }
-            }
-            sz = words_info_table.size();
-            if(!outf.write(reinterpret_cast<char *>(&sz), sizeof(int))){
-                return false;
-            }
-            for (CWIT it = words_info_table.begin(); it != words_info_table.end(); it++) {
-                if (!writeinfo(outf,it->first, it->second)) {
-                    return false;
-                }
-            }
-            return datrie.write(outf);
+        if(!inf.read(reinterpret_cast<char *> (&sz), sizeof(int))) {
+            return false;
         }
-    private:
-        Dictionary(const Dictionary &);
-        void clear(){
-            for (WIT it = words_info_table.begin(); it != words_info_table.end(); it++) {
-                WordInfo info = it->second;
-                if (info.word) {
-                    delete [] info.word;
-                }
-                if (info.info) {
-                    delete  info.info;
-                }
+        int id;
+        WordInfo info;
+        for (int i = 0; i < sz; i++) {
+            if (!readinfo(inf,&id, &info)) {
+                return false;
             }
-            words_info_table.clear();
-            max_word_id = 0;
-            total_freq = 0;
+            words_info_table[id] = info;
         }
-        
-        inline bool readinfo(ifstream & inf, int * id, WordInfo *info) const{
-            if(!inf.read(reinterpret_cast<char *>(id), sizeof(int))){
-                return false;
-            }
-            if(!inf.read(reinterpret_cast<char *>(info), sizeof(WordInfo))){
-                return false;
-            }
-            if (info->word) {
-                int sz;
-                if(!inf.read(reinterpret_cast<char *>(&sz), sizeof(int))){
-                    return false;
-                }
-                info->word = new char[sz];
-                if(!inf.read(info->word, sz)){
-                    return false;
-                }
-            }
-            if (info->info) {
-                info->info = new FreqInfo();
-                return info->info->read(inf);
-            }
-            return true;
+        return datrie.read(inf);
+
+    }
+    bool save(const string & path)
+    {
+        ofstream outf(path.c_str(),ios::binary|ios::out);
+        if (!outf.good()) {
+            cerr<<"can't open dict:"<<path<<endl;
+            return false;
         }
-        inline bool writeinfo(ofstream & outf, int id, const WordInfo &info) const{
-            if(!outf.write(reinterpret_cast<char *>(&id), sizeof(int))){
+        filepath = path;
+        if(!outf.write(reinterpret_cast<char *>(&total_freq), sizeof(int))) {
+            return false;
+        }
+        if(!outf.write(reinterpret_cast<char *>(&max_word_id), sizeof(int))) {
+            return false;
+        }
+        int sz = name.length();
+        if (sz != 0) {
+            sz ++;
+        }
+        if(!outf.write(reinterpret_cast<char *>(&sz), sizeof(int))) {
+            return false;
+        }
+        if (sz) {
+            if(!outf.write(name.c_str(), sz)) {
                 return false;
             }
-            if(!outf.write(reinterpret_cast<char *>(const_cast<WordInfo *>(&info)), sizeof(WordInfo)))
-            {
+        }
+        sz = words_info_table.size();
+        if(!outf.write(reinterpret_cast<char *>(&sz), sizeof(int))) {
+            return false;
+        }
+        for (CWIT it = words_info_table.begin(); it != words_info_table.end(); it++) {
+            if (!writeinfo(outf,it->first, it->second)) {
                 return false;
             }
+        }
+        return datrie.write(outf);
+    }
+private:
+    Dictionary(const Dictionary &);
+    void clear()
+    {
+        for (WIT it = words_info_table.begin(); it != words_info_table.end(); it++) {
+            WordInfo info = it->second;
             if (info.word) {
-                int sz = Length<char>()(info.word) + 1;
-                if(!outf.write(reinterpret_cast<char *>(&sz), sizeof(int))){
-                    return false;
-                }
-                if(!outf.write(info.word, sz)){
-                    return false;
-                }
+                delete [] info.word;
             }
             if (info.info) {
-                return info.info->write(outf);
+                delete  info.info;
             }
-            return true;
         }
-    };
+        words_info_table.clear();
+        max_word_id = 0;
+        total_freq = 0;
+    }
+
+    inline bool readinfo(ifstream & inf, int * id, WordInfo *info) const
+    {
+        if(!inf.read(reinterpret_cast<char *>(id), sizeof(int))) {
+            return false;
+        }
+        if(!inf.read(reinterpret_cast<char *>(info), sizeof(WordInfo))) {
+            return false;
+        }
+        if (info->word) {
+            int sz;
+            if(!inf.read(reinterpret_cast<char *>(&sz), sizeof(int))) {
+                return false;
+            }
+            info->word = new char[sz];
+            if(!inf.read(info->word, sz)) {
+                return false;
+            }
+        }
+        if (info->info) {
+            info->info = new FreqInfo();
+            return info->info->read(inf);
+        }
+        return true;
+    }
+    inline bool writeinfo(ofstream & outf, int id, const WordInfo &info) const
+    {
+        if(!outf.write(reinterpret_cast<char *>(&id), sizeof(int))) {
+            return false;
+        }
+        if(!outf.write(reinterpret_cast<char *>(const_cast<WordInfo *>(&info)), sizeof(WordInfo))) {
+            return false;
+        }
+        if (info.word) {
+            int sz = Length<char>()(info.word) + 1;
+            if(!outf.write(reinterpret_cast<char *>(&sz), sizeof(int))) {
+                return false;
+            }
+            if(!outf.write(info.word, sz)) {
+                return false;
+            }
+        }
+        if (info.info) {
+            return info.info->write(outf);
+        }
+        return true;
+    }
+};
 }

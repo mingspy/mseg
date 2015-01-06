@@ -216,11 +216,13 @@ const wstring trim(const wstring& str)
     }
 }
 
-inline bool startswith(const string & str, const string & sub){
+inline bool startswith(const string & str, const string & sub)
+{
     return str.find(sub) == 0;
 }
 
-inline bool endswith(const string & str, const string & sub){
+inline bool endswith(const string & str, const string & sub)
+{
     return str.rfind(sub) == (str.length() - sub.length());
 }
 

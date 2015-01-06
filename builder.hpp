@@ -31,32 +31,36 @@ using namespace std;
 namespace mingspy
 {
 
-struct PeopleEntity{
-	string pos;
-	string entpos;
-	string word;
-	vector<PeopleEntity> sub;
-	bool isCompose;
-	bool isBegin;
-	bool isEnd;
-	PeopleEntity():isCompose(false),isBegin(false),isEnd(false){}
+struct PeopleEntity {
+    string pos;
+    string entpos;
+    string word;
+    vector<PeopleEntity> sub;
+    bool isCompose;
+    bool isBegin;
+    bool isEnd;
+    PeopleEntity():isCompose(false),isBegin(false),isEnd(false) {}
 };
 
-class parse_error {
+class parse_error
+{
     string _msg;
 public:
-    parse_error(const string & msg):_msg(msg){
+    parse_error(const string & msg):_msg(msg)
+    {
     }
 
-    friend ostream&operator<<(ostream & out,const  parse_error & e){
+    friend ostream&operator<<(ostream & out,const  parse_error & e)
+    {
         out<<e._msg;
         return out;
     }
 };
-inline bool isPos(const string & s){
+inline bool isPos(const string & s)
+{
     const char * p = s.c_str();
-    while(*p){
-        if (!isalpha(*p)){
+    while(*p) {
+        if (!isalpha(*p)) {
             return false;
         }
         p ++;
@@ -64,11 +68,12 @@ inline bool isPos(const string & s){
     return true;
 }
 
-PeopleEntity parseEntity(string & t){
+PeopleEntity parseEntity(string & t)
+{
     static vector<string> puncs;
     static bool inited = false;
     int chinese_len = 3;
-    if (!inited){
+    if (!inited) {
         chinese_len = string("中").length();
         //'(',')','（','）','《','》','【','】','，','、','？','!','。','；','：'
         puncs.push_back("(");
@@ -89,36 +94,35 @@ PeopleEntity parseEntity(string & t){
         puncs.push_back("：");
         inited = true;
     }
-	PeopleEntity ent;
+    PeopleEntity ent;
     int idx = t.find('/');
     if (t.find("http://") != string::npos)
         idx = t.rfind('/');
     if (idx == string::npos)
         throw parse_error("format error dont found / ");
     ent.word = t.substr(0,idx);
-    ent.pos = t.substr(idx+1); 
+    ent.pos = t.substr(idx+1);
     if(ent.word.empty() && ent.pos.empty())
         throw parse_error("null word or role:");
-    if (ent.word == "" && ent.pos == "/w"){
+    if (ent.word == "" && ent.pos == "/w") {
         ent.word = "/";
         ent.pos = "w";
-	}
-    else if(ent.word == ""&& ent.pos == "w")
+    } else if(ent.word == ""&& ent.pos == "w")
         ent.word = " ";
-    if (ent.word.length() > 1 && ent.word[0] == '[' ){
-        ent.word = ent.word.substr(1); 
+    if (ent.word.length() > 1 && ent.word[0] == '[' ) {
+        ent.word = ent.word.substr(1);
         ent.isBegin = true;
-	}
+    }
     int ridx = ent.pos.find("]");
-    if (ridx >= 0){
+    if (ridx >= 0) {
         ent.isEnd = true;
-        ent.entpos = ent.pos.substr(ridx+1); 
+        ent.entpos = ent.pos.substr(ridx+1);
         if (ent.entpos[0] == '/')
-            ent.entpos == ent.entpos.substr(1); 
+            ent.entpos == ent.entpos.substr(1);
         ent.pos = ent.pos.substr(0,ridx);
-	}
+    }
     int didx = ent.pos.find('/');
-    if (didx >= 0){
+    if (didx >= 0) {
         string role1 = ent.pos.substr(0,didx);
         string role2 = ent.pos.substr(didx+1);
         bool is_r1_pos = isPos(role1);
@@ -129,11 +133,11 @@ PeopleEntity parseEntity(string & t){
             ent.pos = role2;
             ent.word += '/'+role1;
         }
-	}
+    }
 
-    if (ent.word.length() > chinese_len){
-        for(int i = 0; i < puncs.size(); i++){
-            if (startswith(ent.word, puncs[i]) or endswith(ent.word, puncs[i])){
+    if (ent.word.length() > chinese_len) {
+        for(int i = 0; i < puncs.size(); i++) {
+            if (startswith(ent.word, puncs[i]) or endswith(ent.word, puncs[i])) {
                 throw parse_error("has punction");
             }
         }
@@ -141,43 +145,45 @@ PeopleEntity parseEntity(string & t){
     return  ent;
 
 }
-	
-bool parsePeopleEntities(vector<string> & tokenStrList,vector<PeopleEntity> & vec){
+
+bool parsePeopleEntities(vector<string> & tokenStrList,vector<PeopleEntity> & vec)
+{
     PeopleEntity * compose_entity = NULL;
-    for (int i = 0; i < tokenStrList.size(); i++){
-        if(tokenStrList[i].empty() || tokenStrList[i] == " "){
+    for (int i = 0; i < tokenStrList.size(); i++) {
+        if(tokenStrList[i].empty() || tokenStrList[i] == " ") {
             continue;
         }
         PeopleEntity ent = parseEntity(tokenStrList[i]);
         if (ent.word.empty() and ent.pos.empty())
-           throw parse_error("parse token failed"); 
+            throw parse_error("parse token failed");
         if ((ent.isBegin && compose_entity) || (ent.isEnd && !compose_entity))
-           throw parse_error("composed entity checking error"); 
-        if (ent.isBegin){
+            throw parse_error("composed entity checking error");
+        if (ent.isBegin) {
             vec.push_back(PeopleEntity());
             compose_entity = &vec[vec.size() -1];
             compose_entity->isCompose = true;
         }
-        if(compose_entity){
+        if(compose_entity) {
             compose_entity->sub.push_back(ent);
-        }else{
+        } else {
             vec.push_back(ent);
         }
-        if (ent.isEnd){
+        if (ent.isEnd) {
             compose_entity->entpos = ent.entpos;
             compose_entity = NULL;
         }
     }
     return true;
 }
-	
+
 class Builder
 {
     int start_word_id;
     int start_pos_id;
     Dictionary dict;
     int errors;
-    void add(string & word, string & pos){
+    void add(string & word, string & pos)
+    {
         dict.setMaxWordId(start_pos_id);
         dict.addWord(pos);
         start_pos_id = dict.getMaxWordId();
@@ -185,9 +191,9 @@ class Builder
         dict.addWord(word);
         start_word_id = dict.getMaxWordId();
         dict.addAttrFreq(word,pos,1);
-    } 
+    }
 public:
-    Builder(int pos_id=0,int word_id=1000):start_pos_id(pos_id),start_word_id(word_id),errors(0){}
+    Builder(int pos_id=0,int word_id=1000):start_pos_id(pos_id),start_word_id(word_id),errors(0) {}
     bool buildFromPeopleDaily(const vector<string> &files, const string & output)
     {
         Timer timer;
@@ -225,21 +231,19 @@ public:
         vector<string> tokens;
         split(line," ",tokens);
         vector<PeopleEntity> vec;
-        try{
+        try {
             parsePeopleEntities(tokens,vec);
-            for(int i = 0; i < vec.size(); i++){
+            for(int i = 0; i < vec.size(); i++) {
                 PeopleEntity & ent = vec[i];
-                if (ent.isCompose){
-                    for(int j = 0; j < ent.sub.size();j++){
+                if (ent.isCompose) {
+                    for(int j = 0; j < ent.sub.size(); j++) {
                         add(ent.sub[j].word, ent.sub[j].pos);
                     }
-                }
-                else{
+                } else {
                     add(ent.word,ent.pos);
                 }
             }
-        }
-        catch(parse_error e){
+        } catch(parse_error e) {
             errors ++;
             cerr<<e<<" \""<<line<<"\""<<endl;
         }
