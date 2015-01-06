@@ -205,9 +205,9 @@ public:
         }
 
         double load_word_end_time = timer.elapsed();
-        cout<<"---------------------------------------------------------------"<<endl
+        cout<<"\n---------------------------------------------------------------"<<endl
             <<"parsed total lines:"<<line_count<<" used:"<<(load_word_end_time)
-            <<"errors="<<errors<<endl
+            <<"s\nerrors="<<errors<<endl
             <<"total words:"<<start_word_id - 1000<<" total pos:"<<start_pos_id<<endl;
         bool result = dict.save(output);
         double end_time = timer.elapsed();
@@ -215,7 +215,7 @@ public:
         d2.open(output);
         double open_end_time = timer.elapsed();
         cout<<"build finished! total used:"<<(end_time)
-            <<"s\ndict save used:"<<(end_time - load_word_end_time)<<endl
+            <<"s\ndict save used:"<<(end_time - load_word_end_time)
             <<"s\ndict open used:"<<(open_end_time - end_time)<<endl;
         return result;
     }
