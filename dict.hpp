@@ -19,6 +19,7 @@
 
 #include <iostream>
 #include <string>
+#include <map>
 #include <cstdlib>
 #include <limits.h>
 #include "datrie.hpp"
@@ -28,7 +29,6 @@ using namespace std;
 
 namespace mingspy
 {
-    
     const int MAX_WORD_LEN = 200;
     const string UDF = "UDF";
     const string INNER_CODING = "utf-8"; // inner coding using utf-8.
@@ -39,6 +39,7 @@ namespace mingspy
         typedef map<string, int>::iterator NIT;
         typedef struct WordInfo{
             char * word;
+			int id;
             FreqInfo * info;
         } WordInfo;
         typedef map<int, WordInfo>::iterator WIT;
@@ -60,6 +61,8 @@ namespace mingspy
         ~Dictionary(){
             clear();
         }
+		inline void setMaxWordId(int id){max_word_id = id;}
+		inline int getMaxWordId() const {return max_word_id;}
         inline int addWord(const string & word)
         {
             int wordid = 0;
@@ -75,6 +78,7 @@ namespace mingspy
             int sz = word.length()+1;
             info.word = new char[sz];
             memcpy(info.word, word.c_str(), sz * sizeof(char));
+			info.id = wordid;
             info.info = NULL;
             words_info_table[wordid] = info;
             max_word_id ++;
@@ -142,9 +146,23 @@ namespace mingspy
         const FreqInfo * operator[](const string & word) const{
             return getFreqInfo(word);
         }
-        
+        int addAttrFreq(const string & word, const string & attr, int freq) {
+            int id = addWord(word);
+            if (id <= 0){
+                return INT_MIN;
+            }
+			int attrId = addWord(attr);
+            if (attrId <= 0){
+                return INT_MIN;
+            }
+            return addAttrFreq(id, attrId, freq);
+        }
         int addAttrFreq(const string & word, int attrId, int freq) {
             int id = addWord(word);
+            return addAttrFreq(id, attrId, freq);
+        }
+		
+		int addAttrFreq(int id, int attrId, int freq) {
             if (id <= 0){
                 return INT_MIN;
             }
@@ -154,7 +172,6 @@ namespace mingspy
             total_freq += freq;
             return words_info_table[id].info->addAttrFreq(attrId,freq);
         }
-        
         inline int getAttrFreq(const string & word, int attrId) const {
             int wordId = getWordId(word);
             return getAttrFreq(wordId,attrId);
@@ -313,7 +330,7 @@ namespace mingspy
             if(!outf.write(reinterpret_cast<char *>(&id), sizeof(int))){
                 return false;
             }
-            if(!outf.write(reinterpret_cast<char *>(const_cast<WordInfo *>(&info)), sizeof(WordInfo))
+            if(!outf.write(reinterpret_cast<char *>(const_cast<WordInfo *>(&info)), sizeof(WordInfo)))
             {
                 return false;
             }

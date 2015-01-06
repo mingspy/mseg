@@ -5,14 +5,17 @@ INCLUDE=-I/opt/apps_install/jdk-1.6.0_25/include -I/opt/apps_install/jdk-1.6.0_2
 #CC=g++ -O3 $(INCLUDE)
 CC=g++ -O3 
 
+all:test builder
+.PHONY:all
 #segtool:SegTools.cpp
 #	$(CC) SegTools.cpp -o segtool
 
 #libJSegJNI.so:JSegJNI.cpp
 #	$(CC) -fPIC -shared JSegJNI.cpp -o libJSegJNI.so 
+builder:builder.hpp builder.cpp dict.hpp
+	$(CC) builder.cpp -o builder 
 test:testda.cpp dict.hpp datrie.hpp sparse.hpp
 	$(CC) testda.cpp -o test
-
 clean:
-	rm segtool libJSegJNI.so
+	rm test builder
 

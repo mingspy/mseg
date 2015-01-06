@@ -723,7 +723,7 @@ namespace mingspy
          *         be appended. If it does, its current data will be overwritten.
          */
         inline bool add(const node_type_ * key, data_type_ val) {
-            return storeConditionally(key, val, true);
+            return storeConditionally(key, val, false);
         }
         /**
          * @brief Delete an entry from trie
