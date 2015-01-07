@@ -45,3 +45,9 @@ Temporary Items
 test
 
 *.da
+
+builder
+
+core.dic
+
+testseg

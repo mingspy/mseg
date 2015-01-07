@@ -118,7 +118,7 @@ PeopleEntity parseEntity(string & t)
         ent.isEnd = true;
         ent.entpos = ent.pos.substr(ridx+1);
         if (ent.entpos[0] == '/')
-            ent.entpos == ent.entpos.substr(1);
+            ent.entpos = ent.entpos.substr(1);
         ent.pos = ent.pos.substr(0,ridx);
     }
     int didx = ent.pos.find('/');
