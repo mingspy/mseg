@@ -182,18 +182,22 @@ class Builder
     int start_pos_id;
     Dictionary dict;
     int errors;
+    bool inverse;
     void add(string & word, string & pos)
     {
         dict.setMaxWordId(start_pos_id);
         dict.addWord(pos);
         start_pos_id = dict.getMaxWordId();
         dict.setMaxWordId(start_word_id);
+        if(inverse){
+            reverse(word.begin(),word.end());
+        }
         dict.addWord(word);
         start_word_id = dict.getMaxWordId();
         dict.addAttrFreq(word,pos,1);
     }
 public:
-    Builder(int pos_id=0,int word_id=1000):start_pos_id(pos_id),start_word_id(word_id),errors(0) {}
+    Builder(int pos_id=0,int word_id=1000):start_pos_id(pos_id),start_word_id(word_id),errors(0),inverse(false) {}
     bool buildFromPeopleDaily(const vector<string> &files, const string & output)
     {
         Timer timer;
@@ -248,6 +252,7 @@ public:
             cerr<<e<<" \""<<line<<"\""<<endl;
         }
     }
+    void setInverse(bool isInverse){inverse = isInverse;}
 };
 }
 

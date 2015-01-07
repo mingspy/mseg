@@ -23,11 +23,20 @@
 #include "utils.hpp"
 
 using namespace std;
-int main()
+int main(int argc, char ** argv)
 {
     mingspy::Builder builder;
     vector<string> files;
     getFiles("../data/people/",files);
-    builder.buildFromPeopleDaily(files,"./core.dic");
+    cout<<"here:31"<<endl;
+    if(argc > 1)
+    {
+        builder.setInverse(true);
+        builder.buildFromPeopleDaily(files,"./inverse.dic");
+    }
+    else{
+        cout<<"here:38"<<endl;
+        builder.buildFromPeopleDaily(files,"./core.dic");
+    }
     return 0;
 }

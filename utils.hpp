@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <string.h>
+#include <cstring>
 #include <vector>
 #include <stdlib.h>
 #include <stdio.h>
@@ -218,12 +218,12 @@ const wstring trim(const wstring& str)
 
 inline bool startswith(const string & str, const string & sub)
 {
-    return str.find(sub) == 0;
+    return str.compare(0,sub.length(),sub) == 0;
 }
 
 inline bool endswith(const string & str, const string & sub)
 {
-    return str.rfind(sub) == (str.length() - sub.length());
+    return str.compare(str.length() - sub.length(),sub.length(),sub) == 0;
 }
 
 class LineFileReader
@@ -284,7 +284,7 @@ public:
     double elapsed()
     {
         end_time = clock();
-        return (double)(end_time - start_time) / CLOCKS_PER_SEC;
+        return ((double)(end_time - start_time)) / CLOCKS_PER_SEC;
     }
 
     friend ostream & operator<< (ostream & out, Timer & timer)
@@ -292,4 +292,125 @@ public:
         out<<" elapsed: "<<timer.elapsed()<<"s";
         return out;
     }
+	
+};
+
+namespace mingspy{
+struct lookup_tables {
+    static const unsigned char whitespace[ 256 ]; // Whitespace table
+    static const unsigned char upcase[ 256 ]; // To uppercase conversion table for ASCII characters
+	static const unsigned char estr[ 256 ];   // english and some connect chars
+	static const unsigned char utf8len[ 256 ]; // english and some connect chars
+};
+const unsigned char lookup_tables::whitespace[ 256 ] = {
+//  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0,     // 0
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 1
+    1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 2
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 3
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 4
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 5
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 6
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 7
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 8
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 9
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // A
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // B
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // C
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // D
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // E
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0      // F
+};
+
+const unsigned char lookup_tables::upcase[ 256 ] = {
+    // 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  A   B   C   D   E   F
+    0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,     // 0
+    16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,  // 1
+    32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,  // 2
+    48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,  // 3
+    64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,  // 4
+    80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,  // 5
+    96,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,  // 6
+    80,81,82,83,84,85,86,87,88,89,90,123,124,125,126,127,  // 7
+    128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143, // 8
+    144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159, // 9
+    160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175, // A
+    176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191, // B
+    192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207, // C
+    208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223, // D
+    224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239, // E
+    240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255  // F
+};
+
+const unsigned char lookup_tables::estr[ 256 ] = {
+//  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 0
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 1
+    0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1,     // 2
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1,     // 3
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 4
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,     // 5
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 6
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,     // 7
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 8
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 9
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // A
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // B
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // C
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // D
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // E
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0      // F
+};
+const unsigned char lookup_tables::utf8len[ 256 ] = {
+//  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 0
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 1
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 2
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 3
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 4
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 5
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 6
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 7
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 8
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 9
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // A
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // B
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,     // C
+    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,     // D
+    3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,     // E
+    4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 1, 1      // F
+};
+
+inline int isnumber(const string & str, int start,int end)
+{
+	for(int i = start; i < end; i++){
+		if(!isdigit(str[i])) return false;
+	}
+	return true;
+}
+inline int isenglish(const string & str, int start,int end)
+{
+	for(int i = start; i < end; i++){
+		if(!isalpha(str[i])) return false;
+	}
+	return true;
+}
+
+/*
+* split out English string, http, email,numbers.
+* @return then end of English string. 
+*/
+inline int utf8_next_estr(const string & str, int start)
+{
+	while(lookup_tables::estr[(unsigned char)(str[start])]){start++;}
+	return start;
+}
+/*
+* split out English string, http, email,numbers.
+* @return then end of English string. 
+*/
+inline int utf8_char_len(unsigned char start)
+{
+	return lookup_tables::utf8len[start];
+}
 };

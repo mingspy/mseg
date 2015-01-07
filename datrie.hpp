@@ -823,24 +823,36 @@ public:
      */
     bool find(const node_type_ * key, data_type_ * data = NULL) const
     {
+		return find(key, 0, length_func_()(key)+1, data);
+    }
+	
+	bool find(const node_type_ * key, int start, int end, data_type_ * data = NULL) const
+    {
         // walk through branches
         array_type_ s = _da.getRoot();
-        const node_type_ * p = key;
-        for (; !isSeparate(s); p++) {
-            if (!_da.walk(&s, *p)) {
+        node_type_ ch; 
+		int p = start;
+        for (;p<=end&&!isSeparate(s); p++) {
+            ch = key[p];
+            if (p == end){
+                ch = 0;
+            }
+            if (!_da.walk(&s, ch)) {
                 return false;
             }
-            if ((node_type_)0 == *p) break;
         }
 
         // walk through tail
         s = getTailIndex(s);
         int suffix_idx = 0;
-        for (; ; p++) {
-            if (!_tail.walkChar(s, &suffix_idx, *p)) {
+        for (;p<=end; p++) {
+            ch = key[p];
+            if (p == end){
+                ch = 0;
+            }
+            if (!_tail.walkChar(s, &suffix_idx, ch)) {
                 return false;
             }
-            if ((node_type_)0 == *p) break;
         }
 
         // found, set the val and return
@@ -850,27 +862,30 @@ public:
 
     bool hasPrefix(const node_type_ * prefix) const
     {
+        return hasPrefix(prefix, 0, length_func_()(prefix));
+    }
+	
+	bool hasPrefix(const node_type_ * prefix, int start, int end) const
+    {
         // walk through branches
         array_type_ s = _da.getRoot();
-        const node_type_ * p = prefix;
-        for (; !isSeparate(s); p++) {
-            if ((node_type_)0 == *p) return true;
-            if (!_da.walk(&s, *p)) {
+        int p = start;
+        for (; p < end && !isSeparate(s); p++) {
+            if (!_da.walk(&s, prefix[p])) {
                 return false;
             }
         }
-
+		if(p == end) return true;
         // walk through tail
         s = getTailIndex(s);
         int suffix_idx = 0;
-        for (; ; p++) {
-            if ((node_type_)0 == *p) return true;
-            if (!_tail.walkChar(s, &suffix_idx, *p)) {
+        for (; p < end; p++) {
+            if (!_tail.walkChar(s, &suffix_idx, prefix[p])) {
                 return false;
             }
         }
 
-        return false;
+        return p == end;
     }
 
     bool write(ofstream & outf)

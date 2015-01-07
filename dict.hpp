@@ -214,16 +214,29 @@ public:
         return 0;
     }
 
-    double getTotalFreq() const
+    inline double getTotalFreq() const
     {
         return total_freq;
     }
 
-    bool hasPrefix(const string & prefix) const
+    inline bool hasPrefix(const string & prefix) const
     {
-        return datrie.hasPrefix(prefix.c_str());
+        return datrie.hasPrefix(prefix.c_str(),0, prefix.length());
     }
 
+	inline bool hasPrefix(const string & prefix, int start, int end) const
+    {
+        return datrie.hasPrefix(prefix.c_str(),start, end);
+    }
+	
+	inline bool exist(const string & word) const{
+		return datrie.find(word.c_str(),0,word.length()+1);
+	}
+	
+	inline bool exist(const string & word, int start, int end) const{
+		return datrie.find(word.c_str(),start,end);
+	}
+	
     inline string getName() const
     {
         return name;
