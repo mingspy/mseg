@@ -101,6 +101,15 @@ public:
         return -1;
     }
 
+    inline int getWordId(const string & word,int start, int end) const
+    {
+        int id = 0;
+        if(datrie.find(word.c_str(),start,end,&id)) {
+            return id;
+        }
+        return -1;
+    }
+
     bool addFreqInfo(const string & word, const FreqInfo & info)
     {
         int id = addWord(word);
@@ -122,6 +131,11 @@ public:
         int wordId = getWordId(word);
         return getWordInfo(wordId);
     }
+    inline const WordInfo * getWordInfo(const string & word,int start,int end) const
+    {
+        int wordId = getWordId(word,start, end);
+        return getWordInfo(wordId);
+    }
 
     inline const WordInfo * getWordInfo(int wordId) const
     {
@@ -141,6 +155,15 @@ public:
         return NULL;
     }
 
+    inline FreqInfo * getFreqInfo(const string & word,int start,int end) const
+    {
+        int id = getWordId(word,start,end);
+        if (id <= 0) {
+            return NULL;
+        }
+
+        return words_info_table[id].info;
+    }
     inline FreqInfo * getFreqInfo(const string & word) const
     {
         int id = getWordId(word);
@@ -230,7 +253,7 @@ public:
     }
 	
 	inline bool exist(const string & word) const{
-		return datrie.find(word.c_str(),0,word.length()+1);
+		return datrie.find(word.c_str(),0,word.length());
 	}
 	
 	inline bool exist(const string & word, int start, int end) const{

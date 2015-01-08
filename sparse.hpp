@@ -23,6 +23,7 @@
 #include <cassert>
 #include <vector>
 #include <algorithm>
+#include <map>
 
 using namespace std;
 namespace mingspy
@@ -66,7 +67,7 @@ public:
         clear();
     }
 
-    explicit SparseVector(const SparseVector & refer)
+    SparseVector(const SparseVector & refer)
     {
         copyOf(refer);
     }
@@ -333,6 +334,15 @@ private:
         _size = num;
     }
 
+};
+
+class Matrix{
+private:
+    map<int,SparseVector<double> > rows; 
+public:
+    SparseVector<double> & operator[](size_t row){
+        return rows[row];
+    }
 };
 
 }

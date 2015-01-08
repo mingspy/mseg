@@ -1,7 +1,8 @@
 #include <iostream>
-#include "tokenizer.hpp"
+#include "knife.hpp"
 #include "dict.hpp"
 #include <vector>
+#include "sparse.hpp"
 using namespace std;
 using namespace mingspy;
 const int DATA_SIZE = 15;
@@ -23,7 +24,7 @@ string testdata[] = {
         "叔叔亲了我妈妈也亲了我",//15
 };
 
-void testTokenizer(ITokenizer & seg)
+void testKnife(IKnife & seg)
 {
     cout<<"testing "<<seg.getName()<<" start"<<endl;
     vector<Token> vec;
@@ -37,7 +38,7 @@ void testTokenizer(ITokenizer & seg)
     cout<<"---------------------------------"<<endl;
 }
 
-void testTokenizerSpeed(ITokenizer & seg)
+void testKnifeSpeed(IKnife & seg)
 {
     cout<<"testing "<<seg.getName()<<" start"<<endl;
     int times = 1024*1024;
@@ -70,20 +71,26 @@ void testUtf8len(){
     }
     cout<<endl;
 }
-int main()
-{
-    testUtf8len();
 
+void testSegs(){
     Dictionary dict;
     dict.open("./core.dic");
-    MaxMatcher m(&dict);
+    Flycutter fc(&dict);
     Dictionary inversedict;
     inversedict.open("./inverse.dic");
-    InverseTokenizer iseg(&inversedict);
+    Renda rd(&inversedict);
+    Paoding pao(&dict);
 
-    testTokenizer(m);
-    testTokenizer(iseg);
-    testTokenizerSpeed(m);
-    testTokenizerSpeed(iseg);
+    testKnife(fc);
+    testKnife(rd);
+    testKnife(pao);
+    testKnifeSpeed(fc);
+    testKnifeSpeed(rd);
+    testKnifeSpeed(pao);
+}
+int main()
+{
+    //testUtf8len();
+    testSegs();
     return 0;
 }

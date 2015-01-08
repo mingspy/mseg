@@ -13,7 +13,7 @@ builder:builder.hpp builder.cpp dict.hpp utils.hpp
 	$(CC) builder.cpp -o builder 
 test:testda.cpp dict.hpp datrie.hpp sparse.hpp utils.hpp
 	$(CC) testda.cpp -o test
-testseg:testseg.cpp dict.hpp datrie.hpp sparse.hpp utils.hpp tokenizer.hpp
+testseg:testseg.cpp dict.hpp datrie.hpp sparse.hpp utils.hpp knife.hpp
 	$(CC) testseg.cpp -o testseg
 clean:
 	rm test builder testseg

@@ -823,7 +823,7 @@ public:
      */
     bool find(const node_type_ * key, data_type_ * data = NULL) const
     {
-		return find(key, 0, length_func_()(key)+1, data);
+		return find(key, 0, length_func_()(key), data);
     }
 	
 	bool find(const node_type_ * key, int start, int end, data_type_ * data = NULL) const
