@@ -203,7 +203,6 @@ public:
         Timer timer;
         int line_count = 0;
         for(int i = 0; i< files.size(); i++) {
-            if (!endswith(files[i],".txt")) continue;
             LineFileReader reader(files[i]);
             string * line;
             // 处理词信息
