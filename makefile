@@ -3,8 +3,8 @@ INCLUDE=-I/opt/apps_install/jdk-1.6.0_25/include -I/opt/apps_install/jdk-1.6.0_2
 #LIB=-lencoding -lssplatform -lIQSegmentor -lCoreSegmentor -lunicode-encoding -lsgtagger -lbasic_util -lboost_iostreams
 #CC=g++ -O3 $(INCLUDE) $(LIB) $(LIBDIR)
 #CC=g++ -O3 $(INCLUDE)
-CC=g++ -O3 
-#CC=g++ -g 
+#CC=g++ -O3 
+CC=g++ -g 
 
 all:test builder testseg
 .PHONY:all

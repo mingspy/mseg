@@ -56,10 +56,7 @@ protected:
 public:
     explicit SparseVector()
     {
-        _size = 0;
-        _cells = NULL;
-        _sum = (T)0;
-        modified = false;
+        init();
     }
 
     ~SparseVector()
@@ -69,6 +66,7 @@ public:
 
     SparseVector(const SparseVector & refer)
     {
+        init();
         copyOf(refer);
     }
 
@@ -268,13 +266,16 @@ public:
         return true;
     }
 private:
+    inline void init(){
+        _size = 0;
+        _cells = NULL;
+        _sum = (T)0;
+        modified = false;
+    }
     inline void clear()
     {
         if (_cells) free(_cells);
-        _cells = NULL;
-        _size = 0;
-        _sum = (T)0;
-        modified = false;
+        init();
     }
     /**
      * Locates the greatest index that is not greater than the given index.
