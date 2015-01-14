@@ -39,7 +39,7 @@ namespace mingspy
  *     indices:  1, 10, 20
  *     values : 10, 11, 99
  */
-template<typename T = int>
+template<typename T>
 class SparseVector
 {
 public:
@@ -339,10 +339,17 @@ private:
 
 class Matrix{
 private:
+    SparseVector<int> row_idx;
     map<int,SparseVector<double> > rows; 
 public:
     SparseVector<double> & operator[](size_t row){
         return rows[row];
+    }
+    void idx2row(int idx, int row){
+        row_idx.setAttrVal(idx,row);
+    }
+    int rowfromidx(int idx){
+        return row_idx.getAttrValue(idx);
     }
 };
 

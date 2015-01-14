@@ -20,78 +20,264 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cassert>
+#include <map>
 #include <algorithm>
 #include "dict.hpp"
 #include "utils.hpp"
+#include <math.h>
 
 using namespace std;
 
 namespace mingspy
 {
 const int TYPE_ESTR = -1000;
+const int TYPE_ATOM = -1;
 const int TYPE_IN_DICT = -2000;
 
-struct Token {
+inline int mkId(int start_row, int end_row)  { return end_row + ((start_row << 16)&0xffff0000);}
+inline int getStart(int id)  { return (id >> 16) & 0xffff;}
+inline int getEnd(int id)  { return id  & 0xffff;}
+
+struct Chip {
 public:
-    int _attr; // type of this token or attribute index.
     int _start; // start index.
     int _end; // len
+    int _attr; // type of this Chip or attribute index.
+    double _val;
     //wstring _word; // maybe empty
-    Token(int start = 0, int end = 0, int attr = -1) :_start(start),_end(end),_attr(attr) {
+    Chip(int start = 0, int end = 0, int attr = -1, double score = 0):_start(start),_end(end),_attr(attr),_val(score) {
     }
 
-	friend ostream & operator<<(ostream & out, const Token & t) {
-        out<<"("<<t._start<<","<<t._end<<","<<t._attr<<")";
+	friend ostream & operator<<(ostream & out, const Chip & t) {
+        out<<"("<<t._start<<","<<t._end<<","<<t._attr<<","<<t._val<<")";
 		return out;
     }
 
-    inline bool operator==(const Token& other) const{
-        return _start == other._start && _end == other._end && _attr == other._attr;
+    inline bool operator==(const Chip& other) const{
+        return _start == other._start && _end == other._end;
     }
 };
 
-void output(const vector<Token> & tokens){
-    for(int i = 0; i< tokens.size(); i++) {
-        cout<<tokens[i];
+bool chip_compare_asc(const Chip & o1, const Chip & o2){
+    double d = o1._val - o2._val;
+    if (d <= -0.00000001) return true;
+    return false;
+}
+
+class Graph{
+    vector<vector<Chip> > rows;
+    vector<int> offs;
+    void ensureRow(int row){
+        while(rows.size() <= row){ rows.push_back(vector<Chip>());}
+    }
+    bool isEnd;
+public:
+    inline void addOff(int off) {offs.push_back(off);}
+    inline int getOff(int id) { return offs[id];}
+    inline int offSize() { return offs.size();}
+    inline void addChip(const Chip & chip) {
+        ensureRow(chip._start);
+        vector<Chip>::iterator it = find(rows[chip._start].begin(),rows[chip._start].end(),chip);
+        if (it == rows[chip._start].end())
+            rows[chip._start].push_back(chip);
+        else *it = chip;
+
+    }
+
+    inline int rowSize() const { 
+        if (isEnd) return rows.size() - 1;
+        return rows.size();
+    } 
+    vector<Chip> & getChips(int row){ 
+        assert(row < rows.size());
+        return rows[row];
+    }
+    Chip & getChip(int row,int col){ return rows[row][col]; }
+    void calcWeights(double totalFreq){
+        for (int i = 0; i < rows.size(); i ++){
+            for(int j = 0; j < rows[i].size(); j++){
+                rows[i][j]._val = -log((rows[i][j]._val + 1.0)/totalFreq);
+            }
+        }
+    }
+
+    inline void start() {rows.clear();offs.clear();isEnd = false;}
+    // add last one as an tombstone 
+    void end(){
+        isEnd = true;
+        addChip(Chip(rows.size(), 0, 0, 0));
+    }
+
+    int  getEndChipId(){
+        return mkId(rows.size() - 1, 0);
+    }
+    void output(){
+        cout<<"-------------------------graph----------------"<<endl;
+        cout<<"offs->";
+        for(int i = 0; i < offs.size(); i++){
+            cout<<i<<":"<<offs[i]<<" ";
+        }
+        cout<<endl;
+        cout<<"rows->"<<endl;
+        for(int i = 0; i < rows.size(); i++){
+            cout<<"\t"<<i<<":";
+            for(int j = 0; j < rows[i].size();j++){
+                cout<<rows[i][j];
+            } 
+            cout<<endl;
+        }
+        cout<<endl;
+        cout<<"----------------------------------------------"<<endl;
+    }
+    Graph():isEnd(false){}
+};
+
+void output(const vector<Chip> & chips){
+    for(int i = 0; i< chips.size(); i++) {
+        cout<<chips[i];
     }
     cout<<endl;
 }
-void output(const string & str, const vector<Token> & tokens)
+void output(const string & str, const vector<Chip> & chips)
 {
-    for(int i = 0; i< tokens.size(); i++) {
-        cout<<"'"<<str.substr(tokens[i]._start,tokens[i]._end - tokens[i]._start)<<"'  ";
+    for(int i = 0; i< chips.size(); i++) {
+        cout<<"'"<<str.substr(chips[i]._start,chips[i]._end - chips[i]._start)<<"'  ";
     }
     cout<<endl;
 }
 
-void genWordGraph(const Dictionary & dict,const string &strUtf8, Matrix & graph)
+
+void genWordGraph(const Dictionary & dict,const string &strUtf8, Graph & graph)
 {
+    graph.start();
+    // 1. push all sigle atom word into graph
+    vector<int> atom_offs;
     int len = strUtf8.length();
-    Dictionary::FreqInfo *info = NULL;
     int row = 0;
+    graph.addOff(0);
     for(int i = 0; i < len; ) {
-        int estr = utf8_next_estr(strUtf8,i);
-        if (estr > i) {
-            graph[row++].setAttrVal(estr,100);
-            i = estr;
-            continue;
-         }
-         int j = i + utf8_char_len(strUtf8[i]);
-         int next = j;
-         while( j < len ) {
-            if ((info = dict.getFreqInfo(strUtf8,i,j)) != NULL){
-                next = j;
-                graph[row].setAttrVal(j,info->sum());
-            } else {
-                if(!dict.hasPrefix(strUtf8,i,j)&&j!=next){ break; }
-                graph[row].setAttrVal(j,5);
-            }
-            j += utf8_char_len(strUtf8[j]);
+        int next = utf8_next_estr(strUtf8,i);
+        int tp = TYPE_ESTR;
+        if (next <= i) {
+            tp = TYPE_ATOM;
+            next  = i + utf8_char_len(strUtf8[i]);
         }
+        graph.addChip(Chip(row,row+1,tp));
+        graph.addOff(next);
+        row ++;
         i = next;
-        row++;
     }
+    // 2. find all possible word
+    Dictionary::FreqInfo *info = NULL;
+    int asize = graph.offSize();
+    for ( int i = 0; i < asize - 1; i ++){
+        for(int j = i+1; j < asize; j ++){
+            if ((info = dict.getFreqInfo(strUtf8,graph.getOff(i),graph.getOff(j))) != NULL){
+                graph.addChip(Chip(i,j,TYPE_IN_DICT,info->sum()));
+            } else if(!dict.hasPrefix(strUtf8,graph.getOff(i),graph.getOff(j))){ break; }
+        }
+    }
+    graph.calcWeights(dict.getTotalFreq());
+    graph.end(); 
+#ifdef DEBUG
+    graph.output();
+#endif
 }
+
+struct Paths{
+    int maxid;
+    vector<Chip> _paths;
+    Paths():maxid(-1){}
+    void addPath(int N, int fromId, int idx, double val){
+        if(_paths.size() < N){
+           _paths.push_back(Chip(fromId,idx,0,val)); 
+        }else{
+            double max_val = -1000000;
+            if(maxid == -1){
+                for(int i = 0; i < _paths.size(); i ++){
+                    if(_paths[i]._val > max_val){
+                        maxid = i;
+                        max_val = _paths[i]._val;
+                    }
+                }
+            }
+            if(val < _paths[maxid]._val){
+                _paths[maxid]._start = fromId;
+                _paths[maxid]._end = idx;
+                _paths[maxid]._val = val;
+                maxid = -1;
+            }
+        }
+    }
+};
+class NShortPath{
+    Graph & _graph;
+    map<int, Paths> _edges;
+    const int N;
+    bool sorted;
+public:
+    NShortPath(Graph & graph, int n):_graph(graph),N(n),sorted(false){}
+    void calc(){
+        // 1. initial weights
+        // 2.calc weights:
+         vector<Chip > &chips =  _graph.getChips(0);
+         for(int i = 0; i < chips.size(); i++){
+             addPathWeight(mkId(chips[i]._start,chips[i]._end),0,0,0);
+         }
+        int rsize = _graph.rowSize();
+        for (int i = 0; i < rsize; i++){
+            vector<Chip > & nodes =  _graph.getChips(i);
+            for(int j = 0; j < nodes.size(); j++){
+                assert(nodes[j]._start == i);
+                relax(nodes[j]);
+            }
+        }
+#ifdef DEBUG
+        output();
+#endif
+    }
+    bool getBestPath(int idx, vector<Chip> & result){
+        int wordid = _graph.getEndChipId();
+        Paths & endpath = _edges[wordid];
+        if (idx >= endpath._paths.size()) return false;
+        if (!sorted){
+            sort(endpath._paths.begin(),endpath._paths.end(), chip_compare_asc);
+        }
+        vector<int> back_ids;
+        while(wordid != 0){
+            Chip & cp = _edges[wordid]._paths[idx];
+            wordid = cp._start;
+            idx = cp._end;
+            if (wordid != 0) back_ids.push_back(wordid);
+        }
+        for(int i = back_ids.size() - 1; i >= 0;i--){
+            result.push_back(Chip(_graph.getOff(getStart(back_ids[i])),_graph.getOff(getEnd(back_ids[i]))));
+        }
+        return true;
+    }
+    void output(){
+        cout<<"-----------------edges--------------------"<<endl;
+        for (map<int,Paths>::iterator it = _edges.begin(); it != _edges.end(); it++){
+            cout<<getStart(it->first)<<","<<getEnd(it->first)<<"->";
+            mingspy::output(it->second._paths);
+        }
+        cout<<"------------------------------------------"<<endl;
+    }
+private:
+    void relax(const Chip & chip){
+        int chipid = mkId(chip._start, chip._end);
+        vector<Chip > & nexts =  _graph.getChips(chip._end);
+        for(int j = 0; j < nexts.size(); j++){
+            for(int i = 0; i < _edges[chipid]._paths.size(); i++){
+                addPathWeight(mkId(nexts[j]._start,nexts[j]._end), chipid, i, _edges[chipid]._paths[i]._val+chip._val);
+            }
+        }
+    }
+    inline void addPathWeight(int id, int fromId, int idx, double val){
+        _edges[id].addPath(N,fromId,idx,val);
+    }
+};
 
 class IKnife
 {
@@ -102,7 +288,7 @@ public:
      * @param strUtf8 : the input str to split.
      * @param result : result words
      */
-    virtual void split(const string &strUtf8, vector<Token> & result) = 0;
+    virtual void split(const string &strUtf8, vector<Chip> & result) = 0;
 	void setDict(Dictionary * pdict){dict = pdict;}
     void setName(const string & name){myname = name;}
     string getName() const {return myname;}
@@ -130,13 +316,13 @@ public:
         setName("--* Lee's fly cutter: a forward max match tokenizer *--");
     }
 
-    virtual void split(const string &strUtf8, vector<Token> & result)
+    virtual void split(const string &strUtf8, vector<Chip> & result)
     {
         int len = strUtf8.length();
         for(int i = 0; i < len; ) {
             int estr = utf8_next_estr(strUtf8,i);
             if (estr > i){
-                result.push_back(Token(i,estr,TYPE_ESTR));
+                result.push_back(Chip(i,estr,TYPE_ESTR));
                 i = estr;
                 continue;
             }
@@ -147,7 +333,7 @@ public:
                 if(dict->exist(strUtf8,i,j)){ next = j; }
                 else if(!dict->hasPrefix(strUtf8,i,j)){ break; }
             }
-            result.push_back(Token(i,next));
+            result.push_back(Chip(i,next));
             i = next;
         }
     }
@@ -172,7 +358,7 @@ public:
         setName("--* renda: a backward max match tokenizer *--");
     }
 
-    virtual void split(const string &strUtf8, vector<Token> & result)
+    virtual void split(const string &strUtf8, vector<Chip> & result)
     {
 		int len = strUtf8.length();
         vector<int> pos;
@@ -195,7 +381,7 @@ public:
 				if(dict->exist(str,pos[i],pos[j])){ next = j; }
                 else if(!dict->hasPrefix(str,pos[i],pos[j])){ break; }
             }
-			result.push_back(Token(len - pos[next], len - pos[i]));
+			result.push_back(Chip(len - pos[next], len - pos[i]));
             i = next;
         }
         reverse(result.begin(), result.end());
@@ -217,14 +403,14 @@ public:
         setName("--* paoding: a full words tokenizer *--");
     }
 
-    virtual void split(const string &strUtf8, vector<Token> & result)
+    virtual void split(const string &strUtf8, vector<Chip> & result)
     {
         int len = strUtf8.length();
         int best = -1;
         for(int i = 0; i < len; ) {
             int estr = utf8_next_estr(strUtf8,i);
             if (estr > i){
-                result.push_back(Token(i,estr,TYPE_ESTR));
+                result.push_back(Chip(i,estr,TYPE_ESTR));
                 i = estr;
                 continue;
             }
@@ -234,12 +420,29 @@ public:
                 j += utf8_char_len(strUtf8[j]);
                 if(dict->exist(strUtf8,i,j)){ 
                     best = j;
-                    result.push_back(Token(i,j));
+                    result.push_back(Chip(i,j));
                 } else if(!dict->hasPrefix(strUtf8,i,j)){ break; }
             }
-            if(best <= i){ result.push_back(Token(i,next)); }
+            if(best <= i){ result.push_back(Chip(i,next)); }
             i = next;
         }
+    }
+};
+
+class Unigram:public IKnife{
+public:
+    Unigram(Dictionary * refdict = NULL) {
+        setDict(refdict);
+        setName("--* unigram: a unitary gram tokenizer *--");
+    }
+
+    virtual void split(const string &strUtf8, vector<Chip> & result)
+    {
+        Graph g;
+        genWordGraph(*dict, strUtf8, g);
+        NShortPath npath(g, 6);
+        npath.calc();
+        npath.getBestPath(0,result);
     }
 };
 }

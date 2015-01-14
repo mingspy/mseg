@@ -7,10 +7,10 @@ using namespace std;
 using namespace mingspy;
 const int DATA_SIZE = 15;
 string testdata[] = {
+        "软件和服务",
         "www.sina.com.cn是个好网站",
         "ISNUMBER函数是office办公软件excel中的一种函数\n是脚本语言",
         "中华人民共和国简称中国",
-        "软件和服务",
         "结婚的和尚未结婚的",
         "他说的确实在理",
         "把手抬起来",
@@ -28,7 +28,7 @@ string speedstr =  "在所有字符集中，最知名的可能要数被称为ASC
 void testKnife(IKnife & seg)
 {
     cout<<"testing "<<seg.getName()<<" start"<<endl;
-    vector<Token> vec;
+    vector<Chip> vec;
     Timer t;
     for(int i = 0; i < DATA_SIZE; i++){
         seg.split(testdata[i],vec);
@@ -42,8 +42,8 @@ void testKnife(IKnife & seg)
 void testKnifeSpeed(IKnife & seg)
 {
     cout<<"testing "<<seg.getName()<<" start"<<endl;
-    int times = 1024*1024;
-    vector<Token> vec;
+    int times = 1024;
+    vector<Chip> vec;
     double size = speedstr.length();
     /*for(int i = 0; i < DATA_SIZE; i++){
         size += testdata[i].length();
@@ -59,7 +59,7 @@ void testKnifeSpeed(IKnife & seg)
         }*/
     }
     double elapsed = t.elapsed();
-    cout<<"split data "<<size<<"m, used "<<elapsed<<"s,  speed is "<<size/elapsed<<"m/s"<<endl;
+    cout<<"split data "<<size<<"k, used "<<elapsed<<"s,  speed is "<<size/elapsed/1024<<"m/s"<<endl;
     cout<<"---------------------------------"<<endl;
 }
 void testUtf8len(){
@@ -80,26 +80,45 @@ void testSegs(){
     inversedict.open("./inverse.dic");
     Renda rd(&inversedict);
     Paoding pao(&dict);
+    Unigram ug(&dict);
 
     testKnife(fc);
     testKnife(rd);
     testKnife(pao);
+    testKnife(ug);
     testKnifeSpeed(fc);
     testKnifeSpeed(rd);
     testKnifeSpeed(pao);
+    testKnifeSpeed(ug);
 }
-int main()
-{
-    //testUtf8len();
-    //testSegs();
+void testGenGraph(){
     Dictionary dict;
     dict.open("./core.dic");
     Timer t;
     double size = speedstr.length();
-    for(int i = 0; i < 1024 * 1024; i ++){
-        Matrix m;
-        genWordGraph(dict, speedstr,m);
+    Graph g;
+    for(int i = 0; i < 1024; i ++){
+        //vector<vector<Chip> > m;
+        //map<int,int> rows;
+        //genWordGraph(dict, speedstr,m,rows);
+        genWordGraph(dict, speedstr,g);
+        NShortPath npath(g,10);
+        npath.calc();
     }
-    cout<<"speed is"<<size/t.elapsed()<<endl;
-    return 0;
+    cout<<"speed is "<<size/t.elapsed()/1024<<endl;
 }
+
+int main()
+{
+    //testUtf8len();
+    testSegs();
+    //testGenGraph();
+    
+    Dictionary dict;
+    dict.open("./core.dic");
+    vector<Chip> vec;
+    Unigram seg(&dict);
+    seg.split(testdata[0],vec);
+    output(vec);
+}
+
