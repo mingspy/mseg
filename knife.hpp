@@ -57,8 +57,19 @@ public:
     inline bool operator==(const Chip& other) const{
         return _start == other._start && _end == other._end;
     }
+    inline bool operator!=(const Chip& other) const{
+        return _start != other._start || _end != other._end;
+    }
 };
 
+bool diff(const vector<Chip> & v1, const vector<Chip> & v2){
+    if (v1.size() != v2.size()) return true;
+    int vsize = v1.size();
+    for (int i = 0; i < vsize; i ++){
+        if (v1[i] != v2[i]) return true;
+    }
+    return false;
+}
 bool chip_compare_asc(const Chip & o1, const Chip & o2){
     double d = o1._val - o2._val;
     if (d <= -0.00000001) return true;
@@ -71,12 +82,13 @@ class Graph{
     void ensureRow(int row){
         while(rows.size() <= row){ rows.push_back(vector<Chip>());}
     }
-    bool isEnd;
+    bool _ended;
 public:
     inline void addOff(int off) {offs.push_back(off);}
     inline int getOff(int id) { return offs[id];}
     inline int offSize() { return offs.size();}
     inline void addChip(const Chip & chip) {
+        assert(!_ended);
         ensureRow(chip._start);
         vector<Chip>::iterator it = find(rows[chip._start].begin(),rows[chip._start].end(),chip);
         if (it == rows[chip._start].end())
@@ -86,7 +98,7 @@ public:
     }
 
     inline int rowSize() const { 
-        if (isEnd) return rows.size() - 1;
+        if (_ended) return rows.size() - 1;
         return rows.size();
     } 
     vector<Chip> & getChips(int row){ 
@@ -102,17 +114,17 @@ public:
         }
     }
 
-    inline void start() {rows.clear();offs.clear();isEnd = false;}
+    inline void start() {rows.clear();offs.clear();_ended = false;}
     // add last one as an tombstone 
     void end(){
-        isEnd = true;
         addChip(Chip(rows.size(), 0, 0, 0));
+        _ended = true;
     }
 
     int  getEndChipId(){
         return mkId(rows.size() - 1, 0);
     }
-    void output(){
+    void print(){
         cout<<"-------------------------graph----------------"<<endl;
         cout<<"offs->";
         for(int i = 0; i < offs.size(); i++){
@@ -130,16 +142,17 @@ public:
         cout<<endl;
         cout<<"----------------------------------------------"<<endl;
     }
-    Graph():isEnd(false){}
+    Graph():_ended(false){}
 };
 
-void output(const vector<Chip> & chips){
+void print(const vector<Chip> & chips){
     for(int i = 0; i< chips.size(); i++) {
         cout<<chips[i];
     }
     cout<<endl;
 }
-void output(const string & str, const vector<Chip> & chips)
+
+void print(const string & str, const vector<Chip> & chips)
 {
     for(int i = 0; i< chips.size(); i++) {
         cout<<"'"<<str.substr(chips[i]._start,chips[i]._end - chips[i]._start)<<"'  ";
@@ -147,11 +160,17 @@ void output(const string & str, const vector<Chip> & chips)
     cout<<endl;
 }
 
+void substrs(const string & str, const vector<Chip> & chips, vector<string> & result)
+{
+    for(int i = 0; i< chips.size(); i++) {
+        result.push_back(str.substr(chips[i]._start,chips[i]._end - chips[i]._start));
+    }
+}
 
 void genWordGraph(const Dictionary & dict,const string &strUtf8, Graph & graph)
 {
-    graph.start();
     // 1. push all sigle atom word into graph
+    graph.start();
     vector<int> atom_offs;
     int len = strUtf8.length();
     int row = 0;
@@ -178,10 +197,8 @@ void genWordGraph(const Dictionary & dict,const string &strUtf8, Graph & graph)
             } else if(!dict.hasPrefix(strUtf8,graph.getOff(i),graph.getOff(j))){ break; }
         }
     }
-    graph.calcWeights(dict.getTotalFreq());
-    graph.end(); 
 #ifdef DEBUG
-    graph.output();
+    graph.print();
 #endif
 }
 
@@ -234,7 +251,7 @@ public:
             }
         }
 #ifdef DEBUG
-        output();
+        print();
 #endif
     }
     bool getBestPath(int idx, vector<Chip> & result){
@@ -256,11 +273,11 @@ public:
         }
         return true;
     }
-    void output(){
+    void print(){
         cout<<"-----------------edges--------------------"<<endl;
         for (map<int,Paths>::iterator it = _edges.begin(); it != _edges.end(); it++){
             cout<<getStart(it->first)<<","<<getEnd(it->first)<<"->";
-            mingspy::output(it->second._paths);
+            mingspy::print(it->second._paths);
         }
         cout<<"------------------------------------------"<<endl;
     }
@@ -288,7 +305,7 @@ public:
      * @param strUtf8 : the input str to split.
      * @param result : result words
      */
-    virtual void split(const string &strUtf8, vector<Chip> & result) = 0;
+    virtual void split(const string &strUtf8, vector<Chip> & result) const = 0;
 	void setDict(Dictionary * pdict){dict = pdict;}
     void setName(const string & name){myname = name;}
     string getName() const {return myname;}
@@ -316,7 +333,7 @@ public:
         setName("--* Lee's fly cutter: a forward max match tokenizer *--");
     }
 
-    virtual void split(const string &strUtf8, vector<Chip> & result)
+    virtual void split(const string &strUtf8, vector<Chip> & result) const
     {
         int len = strUtf8.length();
         for(int i = 0; i < len; ) {
@@ -358,7 +375,7 @@ public:
         setName("--* renda: a backward max match tokenizer *--");
     }
 
-    virtual void split(const string &strUtf8, vector<Chip> & result)
+    virtual void split(const string &strUtf8, vector<Chip> & result) const
     {
 		int len = strUtf8.length();
         vector<int> pos;
@@ -403,7 +420,7 @@ public:
         setName("--* paoding: a full words tokenizer *--");
     }
 
-    virtual void split(const string &strUtf8, vector<Chip> & result)
+    virtual void split(const string &strUtf8, vector<Chip> & result) const
     {
         int len = strUtf8.length();
         int best = -1;
@@ -436,13 +453,75 @@ public:
         setName("--* unigram: a unitary gram tokenizer *--");
     }
 
-    virtual void split(const string &strUtf8, vector<Chip> & result)
+    virtual void split(const string &strUtf8, vector<Chip> & result) const
     {
-        Graph g;
-        genWordGraph(*dict, strUtf8, g);
-        NShortPath npath(g, 6);
+        Graph graph;
+        genWordGraph(*dict, strUtf8, graph);
+        graph.calcWeights(dict->getTotalFreq());
+        graph.end();
+        NShortPath npath(graph, 8);
         npath.calc();
         npath.getBestPath(0,result);
     }
+};
+
+class Mixture:public IKnife{
+public:
+    Mixture(Dictionary * refdict = NULL) {
+        setDict(refdict);
+        setName("--* Mixture: strategy tokenizer using cutter,renda,unigram *--");
+    }
+
+    virtual void split(const string &strUtf8, vector<Chip> & result) const
+    {
+        vector<Chip> r1;
+        Flycutter cutter(dict);
+        cutter.split(strUtf8, r1);
+        vector<Chip> r2;
+        Renda renda(dict);
+        renda.split(strUtf8,r2);
+        if (!diff(r1,r2)){
+            result = r2;
+            return;
+        }
+
+        // gen graph
+        Graph graph;
+        map<int,int> off2row;
+        int i = 0, j = 0, row = 0, off = 0;
+        graph.addOff(0);
+        off2row[0]=0;
+        for(; i < r1.size() && j < r2.size();){
+            if(r1[i]._end == r2[j]._end){ off = r1[i]._end; i++; j++;
+            }else if(r1[i]._end < r2[j]._end){ off = r1[i]._end; i++;
+            }else{ off = r2[j]._end; j++; }
+            graph.addOff(off);
+            ++row;
+            off2row[off] = row;
+        }
+        Dictionary::FreqInfo *info = NULL;
+        double freq = 0;
+        for(i = 0; i < r1.size(); i++){
+            freq = 0;
+            if ((info = dict->getFreqInfo(strUtf8,r1[i]._start,r1[i]._end)) != NULL){
+                freq = info->sum();
+            }
+            graph.addChip(Chip(off2row[r1[i]._start],off2row[r1[i]._end],-1,freq));
+        }
+
+        for(i = 0; i < r2.size(); i++){
+            freq = 0;
+            if ((info = dict->getFreqInfo(strUtf8,r2[i]._start,r2[i]._end)) != NULL){
+                freq = info->sum();
+            }
+            graph.addChip(Chip(off2row[r2[i]._start],off2row[r2[i]._end],-1,freq));
+        }
+        graph.calcWeights(dict->getTotalFreq());
+        graph.end();
+        NShortPath npath(graph, 8);
+        npath.calc();
+        npath.getBestPath(0,result);
+    }
+
 };
 }

@@ -3,6 +3,10 @@
 #include "dict.hpp"
 #include <vector>
 #include "sparse.hpp"
+#include "estimator.hpp"
+#include "utils.hpp"
+#include "builder.hpp"
+
 using namespace std;
 using namespace mingspy;
 const int DATA_SIZE = 15;
@@ -32,36 +36,13 @@ void testKnife(IKnife & seg)
     Timer t;
     for(int i = 0; i < DATA_SIZE; i++){
         seg.split(testdata[i],vec);
-        output(testdata[i],vec);
+        print(testdata[i],vec);
         vec.clear();
     }
     cout<<"used "<<t.elapsed()<<"s"<<endl;
     cout<<"---------------------------------"<<endl;
 }
 
-void testKnifeSpeed(IKnife & seg)
-{
-    cout<<"testing "<<seg.getName()<<" start"<<endl;
-    int times = 1024;
-    vector<Chip> vec;
-    double size = speedstr.length();
-    /*for(int i = 0; i < DATA_SIZE; i++){
-        size += testdata[i].length();
-    }
-    */
-    Timer t;
-    for(int j = 0; j < times;j++){
-        seg.split(speedstr,vec);
-        vec.clear();
-        /*for(int i = 0; i < DATA_SIZE; i++){
-            seg.split(testdata[i],vec);
-            vec.clear();
-        }*/
-    }
-    double elapsed = t.elapsed();
-    cout<<"split data "<<size<<"k, used "<<elapsed<<"s,  speed is "<<size/elapsed/1024<<"m/s"<<endl;
-    cout<<"---------------------------------"<<endl;
-}
 void testUtf8len(){
     string ss = "abc中国人哈2";
     cout<<ss.length()<<endl;
@@ -81,15 +62,19 @@ void testSegs(){
     Renda rd(&inversedict);
     Paoding pao(&dict);
     Unigram ug(&dict);
+    Mixture mix(&dict);
 
     testKnife(fc);
     testKnife(rd);
-    testKnife(pao);
     testKnife(ug);
-    testKnifeSpeed(fc);
-    testKnifeSpeed(rd);
-    testKnifeSpeed(pao);
-    testKnifeSpeed(ug);
+    testKnife(mix);
+    testKnife(pao);
+    Estimator est("./est.txt");
+    est.estimate(fc);
+    est.estimate(rd);
+    est.estimate(ug);
+    est.estimate(mix);
+    est.estimate(pao);
 }
 void testGenGraph(){
     Dictionary dict;
@@ -108,17 +93,50 @@ void testGenGraph(){
     cout<<"speed is "<<size/t.elapsed()/1024<<endl;
 }
 
-int main()
+void prepair_estimate_data(const char * path = "../data/people/199806.txt"){
+    LineFileReader reader(path);
+    string * line;
+    ofstream outf("./est.txt");
+    while(line = reader.getLine()){
+        string data = trim(*line);
+        if(data.empty()) continue;
+        vector<string> tokens;
+        split(data," ",tokens);
+        vector<PeopleEntity> vec;
+        string testdata;
+        string result;
+        try {
+            parsePeopleEntities(tokens,vec);
+            for(int i = 0; i < vec.size(); i++) {
+                PeopleEntity & ent = vec[i];
+                if (ent.isCompose) {
+                    for(int j = 0; j < ent.sub.size(); j++) {
+                        testdata+=ent.sub[j].word;
+                        if(!result.empty()) result += " ";
+                        result+=ent.sub[j].word;
+                    }
+                } else {
+                    testdata+=ent.word;
+                    if(!result.empty()) result += " ";
+                    result+=ent.word;
+                }
+            }
+            outf<<"@testdata"<<endl<<testdata<<endl<<"@testresult"<<endl<<result<<endl;
+        }catch(parse_error e) {
+            cerr<<"parse error"<<endl;
+        }
+    }
+}
+
+int main(int argc, char ** argv)
 {
     //testUtf8len();
+    if (argc > 1){
+        prepair_estimate_data(argv[1]);
+    }else{
+        prepair_estimate_data();
+    }
     testSegs();
     //testGenGraph();
-    
-    Dictionary dict;
-    dict.open("./core.dic");
-    vector<Chip> vec;
-    Unigram seg(&dict);
-    seg.split(testdata[0],vec);
-    output(vec);
 }
 

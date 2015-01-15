@@ -139,16 +139,14 @@ void split(const string& src, const string& separator, vector<string>& result)
     do {
         index = str.find_first_of(separator,start);
         if (index != string::npos) {
-            substring = str.substr(start,index-start);
-            result.push_back(substring);
+            result.push_back(str.substr(start,index - start));
             start = str.find_first_not_of(separator,index);
             if (start == string::npos) return;
         }
     } while(index != string::npos);
 
     //the last token
-    substring = str.substr(start);
-    result.push_back(substring);
+    result.push_back(str.substr(start));
 }
 
 /*
@@ -224,6 +222,11 @@ inline bool startswith(const string & str, const string & sub)
 inline bool endswith(const string & str, const string & sub)
 {
     return str.compare(str.length() - sub.length(),sub.length(),sub) == 0;
+}
+
+inline bool  isPunc(const string &str){
+    static string puncs =  "，。！？、；：";
+    return puncs.find(str) != string::npos;
 }
 
 class LineFileReader
