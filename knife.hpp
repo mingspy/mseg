@@ -23,9 +23,11 @@
 #include <cassert>
 #include <map>
 #include <algorithm>
+#include <float.h>
+#include <math.h>
 #include "dict.hpp"
 #include "utils.hpp"
-#include <math.h>
+#include "sparse.hpp"
 
 using namespace std;
 
@@ -34,6 +36,7 @@ namespace mingspy
 const int TYPE_ESTR = -1000;
 const int TYPE_ATOM = -1;
 const int TYPE_IN_DICT = -2000;
+const double PROB_INFINT = DBL_MAX;
 
 inline int mkId(int start_row, int end_row)  { return end_row + ((start_row << 16)&0xffff0000);}
 inline int getStart(int id)  { return (id >> 16) & 0xffff;}
@@ -76,6 +79,84 @@ bool chip_compare_asc(const Chip & o1, const Chip & o2){
     return false;
 }
 
+double viterbi( const Dictionary & dict, const vector<Dictionary::FreqInfo *> & Observs, vector<int> & bestPos)
+{
+	int T = Observs.size();
+	Matrix<double> delta;
+	Matrix<int> psi;
+
+	// 1. Initialize.
+    double nature_total = dict.getWordFreq(POS_FREQ_TOTAL);
+	for(int i = 0; i< Observs[0]->size(); i++) {
+		double emitp = -log((Observs[0]->getVal(i) + 1.0)/ (nature_total + 10.0));
+		delta[0].setAttrVal(Observs[0]->getId(i), emitp);
+	}
+
+	// 2. Induction.
+	// Get the best path from ti-1 -> ti;
+	// In HMM: delta[t][j] = Max(delta[t-1][i]*a[i][j])*b[j][Obs[t]]
+	//    or  delta[t][j] = Min{-[log[delta[t-1][i]+log(a[i][j])+log(b[j][Obs[t])]}
+	int index = 0;
+	double minProb = PROB_INFINT;
+	double proba = 0;
+
+	for ( int t = 1; t < T; t++ ) {
+		// Calculate each roles best delta from previous to current.
+		for ( int j = 0; j < Observs[t]->size(); j++ ) {
+			minProb = PROB_INFINT;
+            int state_cur = Observs[t]->getId(j);
+			for ( int i = 0; i < Observs[t - 1]->size(); i++ ) {
+				// Get a[i][j], same as -logP(ti-1|ti).
+                int state_pre = Observs[t - 1]->getId(i);
+				proba = -log((dict.getAttrFreq(state_pre, state_cur) + 1.0)/(dict.getWordFreq(state_pre)+10.0));
+				// Add delta[t-1][i].
+				proba += delta[t - 1].getVal(i);
+				if ( proba < minProb ) {
+					index = i;
+					minProb = proba;
+				}
+			}
+			psi[ t ].setAttrVal(j,index);
+#ifdef DEBUG
+            cout<<"t="<<t<<"state="<<dict.getWord(state_cur)<<
+                "(Observs[t]->sum() + 1.0)"<<(Observs[t]->sum() + 1.0)
+                <<" dict.getWordFreq(state_cur) + 10.0)"
+                <<dict.getWordFreq(state_cur) + 10.0<<endl;
+#endif
+			double emitProb = -log((Observs[t]->getVal(j) + 1.0)/ (dict.getWordFreq(state_cur) + 10.0));
+			assert(emitProb >= 0);
+			delta[ t ].setAttrVal(j, minProb + emitProb);
+		}
+	}
+
+	// 3.Terminal.
+	// Record the best role tag's index.
+	//bestPos.setAttrVal(T, -1);
+	minProb = PROB_INFINT;
+	index = 0;
+	SparseVector<double> & lastDelta = delta[T - 1];
+	for ( int i = 0; i < lastDelta.size(); i++ ) {
+		if ( lastDelta.getVal(i) < minProb ) {
+			index = i;
+			minProb = lastDelta.getVal(i);
+		}
+	}
+
+	// Get best path.
+    bestPos.push_back(index);
+	for ( int t = T - 1; t > 0; t-- ) {
+        bestPos.push_back(psi[t].getVal(bestPos[t]));
+	}
+
+    reverse(bestPos.begin(),bestPos.end());
+	// Get best pose.
+	for ( int i = 0; i < T; i++ ) {
+		bestPos[i] = Observs[i]->getId(bestPos[i]);
+	}
+	assert(minProb >=0);
+	return minProb;
+}
+	
 class Graph{
     vector<vector<Chip> > rows;
     vector<int> offs;
@@ -296,6 +377,79 @@ private:
     }
 };
 
+class Tagger{
+    const Dictionary &_dict;
+    mutable Dictionary::FreqInfo _possible_info;
+    mutable bool _info_gened;
+    vector<string> _possible_natures;
+public:
+    Dictionary::FreqInfo *  genPossibleInfo() const {
+        if(!_info_gened){
+            _possible_info.clear();
+            vector<int> freqs;
+            double sum = 0;
+            for(int i = 0; i < _possible_natures.size(); i++){
+                int freq = _dict.getWordFreq(_possible_natures[i]) + 1;
+                sum += freq;
+                freqs.push_back(freq);
+            }
+
+            for(int i = 0; i < freqs.size(); i++){
+                _possible_info.setAttrVal(_dict.getWordId(_possible_natures[i]), freqs[i] * 1000/sum); 
+            }
+            _info_gened = true;
+        }
+        return &_possible_info;
+    }
+public:
+    explicit Tagger(Dictionary & dict):_dict(dict),_info_gened(false){
+        _possible_natures.push_back("n");
+        _possible_natures.push_back("a");
+        _possible_natures.push_back("v");
+        _possible_natures.push_back("c");
+        _possible_natures.push_back("u");
+        _possible_natures.push_back("p");
+    }
+    inline bool tagging(const string &utf8Str, vector<Chip>& chips) const{
+        vector<Dictionary::FreqInfo *> infos; 
+        for( int i = 0; i < chips.size(); i ++){
+            Dictionary::FreqInfo * info = _dict.getFreqInfo(utf8Str,chips[i]._start, chips[i]._end);
+            if(info == NULL){
+                info = genPossibleInfo();
+            } 
+            infos.push_back(info);
+        }
+        vector<int> bests;
+        viterbi(_dict, infos, bests);
+        for(int i = 0; i < bests.size(); i ++){
+            chips[i]._attr = bests[i];
+        }
+        return true;
+    }
+
+    inline bool tagging(const vector<string> & words, vector<string>& tags) const{
+        // prepair tag infos
+        vector<Dictionary::FreqInfo *> infos; 
+        for( int i = 0; i < words.size(); i ++){
+            Dictionary::FreqInfo * info = _dict.getFreqInfo(words[i]);
+            if(info == NULL){
+                info = genPossibleInfo();
+            } 
+            infos.push_back(info);
+        }
+        return tagging(infos,tags);
+    }
+
+    inline bool tagging(const vector<Dictionary::FreqInfo *> & infos, vector<string>& tags) const{
+        vector<int> bests;
+        viterbi(_dict, infos, bests);
+        for(int i = 0; i < bests.size(); i ++){
+            tags.push_back(_dict.getWord(bests[i]));
+        }
+        return true;
+    }
+};
+
 class IKnife
 {
 public:
@@ -457,7 +611,7 @@ public:
     {
         Graph graph;
         genWordGraph(*dict, strUtf8, graph);
-        graph.calcWeights(dict->getTotalFreq());
+        graph.calcWeights(dict->getWordFreq(WORDS_FREQ_TOTAL));
         graph.end();
         NShortPath npath(graph, 8);
         npath.calc();
@@ -516,7 +670,7 @@ public:
             }
             graph.addChip(Chip(off2row[r2[i]._start],off2row[r2[i]._end],-1,freq));
         }
-        graph.calcWeights(dict->getTotalFreq());
+        graph.calcWeights(dict->getWordFreq(WORDS_FREQ_TOTAL));
         graph.end();
         NShortPath npath(graph, 8);
         npath.calc();

@@ -32,6 +32,9 @@ namespace mingspy
 const int MAX_WORD_LEN = 200;
 const string UDF = "UDF";
 const string INNER_CODING = "utf-8"; // inner coding using utf-8.
+const string POS_FREQ_TOTAL = "@POS^TOT@";
+const string WORDS_FREQ_TOTAL = "@WD^TOT@";
+
 class Dictionary
 {
 public:
@@ -72,11 +75,19 @@ public:
     }
     inline int addWord(const string & word)
     {
-        int wordid = 0;
-        if(datrie.find(word.c_str(),&wordid)) {
+        int wordid = addWord(word, max_word_id + 1); 
+        if (wordid == max_word_id + 1){
+            max_word_id++;
+        }
+        return wordid;
+    }
+
+    inline int addWord(const string & word, int wordid)
+    {
+        int wid = 0;
+        if(datrie.find(word.c_str(),&wid)) {
             return wordid;
         }
-        wordid = max_word_id + 1;
         if (!datrie.add(word.c_str(), wordid)) {
             return -1;
         }
@@ -88,7 +99,6 @@ public:
         info.id = wordid;
         info.info = NULL;
         words_info_table[wordid] = info;
-        max_word_id ++;
         return wordid;
     }
 
@@ -158,22 +168,23 @@ public:
     inline FreqInfo * getFreqInfo(const string & word,int start,int end) const
     {
         int id = getWordId(word,start,end);
-        if (id <= 0) {
-            return NULL;
-        }
-
-        return words_info_table[id].info;
+        return getFreqInfo(id);
     }
+
     inline FreqInfo * getFreqInfo(const string & word) const
     {
         int id = getWordId(word);
-        if (id <= 0) {
-            return NULL;
-        }
-
-        return words_info_table[id].info;
+        return getFreqInfo(id);
     }
 
+    inline FreqInfo * getFreqInfo(int wordid) const
+    {
+        CWIT it = words_info_table.find(wordid);
+        if(it == words_info_table.end()){
+            return NULL;
+        }
+        return it->second.info;
+    }
     const FreqInfo * operator[](const string & word) const
     {
         return getFreqInfo(word);
@@ -212,12 +223,14 @@ public:
         int wordId = getWordId(word);
         return getAttrFreq(wordId,attrId);
     }
+
     inline int getAttrFreq(const string & word, const string & attr) const
     {
         int wordId = getWordId(word);
         int attrId = getWordId(attr);
         return getAttrFreq(wordId,attrId);
     }
+
     inline int getAttrFreq(int wordId, int attrId) const
     {
         CWIT it = words_info_table.find(wordId);
@@ -237,9 +250,14 @@ public:
         return 0;
     }
 
-    inline double getTotalFreq() const
+    int getWordFreq(int wordid) const
     {
-        return total_freq;
+        const FreqInfo * pInfo = getFreqInfo(wordid);
+        if(pInfo != NULL) {
+            return pInfo->sum();
+        }
+
+        return 0;
     }
 
     inline bool hasPrefix(const string & prefix) const

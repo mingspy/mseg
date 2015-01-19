@@ -70,30 +70,7 @@ inline bool isPos(const string & s)
 
 PeopleEntity parseEntity(string & t)
 {
-    static vector<string> puncs;
-    static bool inited = false;
-    int chinese_len = 3;
-    if (!inited) {
-        chinese_len = string("中").length();
-        //'(',')','（','）','《','》','【','】','，','、','？','!','。','；','：'
-        puncs.push_back("(");
-        puncs.push_back(")");
-        puncs.push_back("（");
-        puncs.push_back("）");
-        puncs.push_back("《");
-        puncs.push_back("》");
-        puncs.push_back("【");
-        puncs.push_back("】");
-        puncs.push_back("，");
-        puncs.push_back("、");
-        puncs.push_back("！");
-        puncs.push_back(",");
-        puncs.push_back("。");
-        puncs.push_back("!");
-        puncs.push_back("；");
-        puncs.push_back("：");
-        inited = true;
-    }
+    int chinese_len =  string("中").length();
     PeopleEntity ent;
     int idx = t.find('/');
     if (t.find("http://") != string::npos)
@@ -136,10 +113,10 @@ PeopleEntity parseEntity(string & t)
     }
 
     if (ent.word.length() > chinese_len) {
-        for(int i = 0; i < puncs.size(); i++) {
-            if (startswith(ent.word, puncs[i]) or endswith(ent.word, puncs[i])) {
+        int wlen = ent.word.length();
+        if (isPunc(ent.word.substr(0,3)) || isPunc(ent.word.substr(0,1)) 
+            || isPunc(ent.word.substr(wlen - 1)) || isPunc(ent.word.substr(wlen -1))){
                 throw parse_error("has punction");
-            }
         }
     }
     return  ent;
@@ -180,6 +157,8 @@ class Builder
 {
     int start_word_id;
     int start_pos_id;
+    int words_total;
+    int pos_total;
     Dictionary dict;
     int errors;
     bool inverse;
@@ -195,9 +174,12 @@ class Builder
         dict.addWord(word);
         start_word_id = dict.getMaxWordId();
         dict.addAttrFreq(word,pos,1);
+        words_total += 1;
+        pos_total += 1;
     }
 public:
-    Builder(int pos_id=0,int word_id=1000):start_pos_id(pos_id),start_word_id(word_id),errors(0),inverse(false) {}
+    Builder(int pos_id=0,int word_id=1000):start_pos_id(pos_id),
+        start_word_id(word_id),pos_total(0),words_total(0),errors(0),inverse(false) {}
     bool buildFromPeopleDaily(const vector<string> &files, const string & output)
     {
         Timer timer;
@@ -214,6 +196,8 @@ public:
                 }
             }
         }
+        dict.addAttrFreq(POS_FREQ_TOTAL,-1,pos_total);
+        dict.addAttrFreq(WORDS_FREQ_TOTAL,-1,words_total);
 
         double load_word_end_time = timer.elapsed();
         cout<<"\n---------------------------------------------------------------"<<endl
@@ -238,6 +222,7 @@ public:
         vector<PeopleEntity> vec;
         try {
             parsePeopleEntities(tokens,vec);
+            // word - frequency
             for(int i = 0; i < vec.size(); i++) {
                 PeopleEntity & ent = vec[i];
                 if (ent.isCompose) {
@@ -247,6 +232,24 @@ public:
                 } else {
                     add(ent.word,ent.pos);
                 }
+            }
+            // pos-pos - frequency
+            for(int i = 0; i < vec.size() - 1; i++) {
+                PeopleEntity & ent = vec[i];
+                string next =  vec[i+1].pos;
+                if(vec[i+1].isCompose){
+                    next = vec[i+1].sub[0].pos;
+                }
+
+                string pre = vec[i].pos;
+                if (ent.isCompose) {
+                    pre = ent.sub[0].pos;
+                    for(int j = 1; j < ent.sub.size(); j++){
+                        dict.addAttrFreq(pre,ent.sub[j].pos, 1);
+                        pre = ent.sub[j].pos;
+                    }
+                }
+                dict.addAttrFreq(pre,next, 1);
             }
         } catch(parse_error e) {
             errors ++;

@@ -54,6 +54,7 @@ void testUtf8len(){
 }
 
 void testSegs(){
+    Timer timer;
     Dictionary dict;
     dict.open("./core.dic");
     Flycutter fc(&dict);
@@ -63,18 +64,37 @@ void testSegs(){
     Paoding pao(&dict);
     Unigram ug(&dict);
     Mixture mix(&dict);
+    double load_used = timer.elapsed();
+    cout<<"load dicts used" << load_used<<endl;
 
+    /*
     testKnife(fc);
     testKnife(rd);
     testKnife(ug);
     testKnife(mix);
     testKnife(pao);
+*/
+    vector<Chip> chips;
+    vector<string> words;
+    vector<string> tags;
+    ug.split(testdata[0],chips);
+    substrs(testdata[0],chips,words);
+    Tagger tagger(dict);
+    tagger.tagging(words, tags);
+    for(int i = 0; i < chips.size(); i ++){
+        cout<<words[i]<<"/"<<tags[i]<<" ";
+    }
+    cout<<endl;
+/*
     Estimator est("./est.txt");
     est.estimate(fc);
     est.estimate(rd);
     est.estimate(ug);
     est.estimate(mix);
     est.estimate(pao);
+*/
+    cout<<"testing  used" << timer.elapsed() - load_used<<endl;
+    cout<<"total  used" << timer<<endl;
 }
 void testGenGraph(){
     Dictionary dict;

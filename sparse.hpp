@@ -103,7 +103,7 @@ public:
         modified = true;
     }
 
-    T sum() const
+    inline T sum() const
     {
         if(_sum == 0 || modified) {
             _sum = (T)0;
@@ -115,6 +115,8 @@ public:
 
         return _sum;
     }
+
+    inline int size()const {return _size;}
 
     /**
      * Sets a specific value in the instance to the given value (internal
@@ -265,17 +267,17 @@ public:
         }
         return true;
     }
+    inline void clear()
+    {
+        if (_cells) free(_cells);
+        init();
+    }
 private:
     inline void init(){
         _size = 0;
         _cells = NULL;
         _sum = (T)0;
         modified = false;
-    }
-    inline void clear()
-    {
-        if (_cells) free(_cells);
-        init();
     }
     /**
      * Locates the greatest index that is not greater than the given index.
@@ -337,19 +339,18 @@ private:
 
 };
 
+template<class T>
 class Matrix{
-private:
-    SparseVector<int> row_idx;
-    map<int,SparseVector<double> > rows; 
+    mutable map<int, SparseVector<T> > _matrixs;
 public:
-    SparseVector<double> & operator[](size_t row){
-        return rows[row];
+    inline SparseVector<T> & operator[](int row) const {
+        return _matrixs[row];
     }
-    void idx2row(int idx, int row){
-        row_idx.setAttrVal(idx,row);
+    inline T & get(int row,int col) const{
+        return _matrixs[row].getAttrVal(col);
     }
-    int rowfromidx(int idx){
-        return row_idx.getAttrValue(idx);
+    inline void set(int row,int col, T & val) const{
+        return _matrixs[row].setAttrVal(col,val);
     }
 };
 

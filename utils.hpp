@@ -225,8 +225,29 @@ inline bool endswith(const string & str, const string & sub)
 }
 
 inline bool  isPunc(const string &str){
-    static string puncs =  "，。！？、；：";
-    return puncs.find(str) != string::npos;
+    static map<string,bool> puncs;
+    static bool inited = false;
+    if (!inited) {
+        //'(',')','（','）','《','》','【','】','，','、','？','!','。','；','：'
+        puncs["("] = true;
+        puncs[")"] = true;
+        puncs["（"] = true;
+        puncs["）"] = true;
+        puncs["《"] = true;
+        puncs["》"] = true;
+        puncs["【"] = true;
+        puncs["】"] = true;
+        puncs["，"] = true;
+        puncs["、"] = true;
+        puncs["！"] = true;
+        puncs[","] = true;
+        puncs["。"] = true;
+        puncs["!"] = true;
+        puncs["；"] = true;
+        puncs["："] = true;
+        inited = true;
+    }
+    return puncs.find(str) != puncs.end();
 }
 
 class LineFileReader
