@@ -67,32 +67,17 @@ void testSegs(){
     double load_used = timer.elapsed();
     cout<<"load dicts used" << load_used<<endl;
 
-    /*
     testKnife(fc);
     testKnife(rd);
     testKnife(ug);
     testKnife(mix);
     testKnife(pao);
-*/
-    vector<Chip> chips;
-    vector<string> words;
-    vector<string> tags;
-    ug.split(testdata[0],chips);
-    substrs(testdata[0],chips,words);
-    Tagger tagger(dict);
-    tagger.tagging(words, tags);
-    for(int i = 0; i < chips.size(); i ++){
-        cout<<words[i]<<"/"<<tags[i]<<" ";
-    }
-    cout<<endl;
-/*
     Estimator est("./est.txt");
     est.estimate(fc);
     est.estimate(rd);
     est.estimate(ug);
     est.estimate(mix);
     est.estimate(pao);
-*/
     cout<<"testing  used" << timer.elapsed() - load_used<<endl;
     cout<<"total  used" << timer<<endl;
 }
@@ -113,50 +98,22 @@ void testGenGraph(){
     cout<<"speed is "<<size/t.elapsed()/1024<<endl;
 }
 
-void prepair_estimate_data(const char * path = "../data/people/199806.txt"){
-    LineFileReader reader(path);
-    string * line;
-    ofstream outf("./est.txt");
-    while(line = reader.getLine()){
-        string data = trim(*line);
-        if(data.empty()) continue;
-        vector<string> tokens;
-        split(data," ",tokens);
-        vector<PeopleEntity> vec;
-        string testdata;
-        string result;
-        try {
-            parsePeopleEntities(tokens,vec);
-            for(int i = 0; i < vec.size(); i++) {
-                PeopleEntity & ent = vec[i];
-                if (ent.isCompose) {
-                    for(int j = 0; j < ent.sub.size(); j++) {
-                        testdata+=ent.sub[j].word;
-                        if(!result.empty()) result += " ";
-                        result+=ent.sub[j].word;
-                    }
-                } else {
-                    testdata+=ent.word;
-                    if(!result.empty()) result += " ";
-                    result+=ent.word;
-                }
-            }
-            outf<<"@testdata"<<endl<<testdata<<endl<<"@testresult"<<endl<<result<<endl;
-        }catch(parse_error e) {
-            cerr<<"parse error"<<endl;
-        }
-    }
-}
-
 int main(int argc, char ** argv)
 {
     //testUtf8len();
+    /*
     if (argc > 1){
         prepair_estimate_data(argv[1]);
     }else{
         prepair_estimate_data();
     }
     testSegs();
+    */
     //testGenGraph();
+    Dictionary dict;
+    dict.open("./core.dic");
+    Tagger tagger(dict);
+    TaggerEstimator est;
+    est.estimate(tagger);
 }
 

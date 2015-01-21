@@ -79,7 +79,7 @@ bool chip_compare_asc(const Chip & o1, const Chip & o2){
     return false;
 }
 
-double viterbi( const Dictionary & dict, const vector<Dictionary::FreqInfo *> & Observs, vector<int> & bestPos)
+double viterbi( const Dictionary & dict, const vector<SparseVector<int> *> & Observs, vector<int> & bestPos)
 {
 	int T = Observs.size();
 	Matrix<double> delta;
@@ -145,7 +145,7 @@ double viterbi( const Dictionary & dict, const vector<Dictionary::FreqInfo *> & 
 	// Get best path.
     bestPos.push_back(index);
 	for ( int t = T - 1; t > 0; t-- ) {
-        bestPos.push_back(psi[t].getVal(bestPos[t]));
+        bestPos.push_back(psi[t].getVal(bestPos[T- 1 - t]));
 	}
 
     reverse(bestPos.begin(),bestPos.end());
@@ -379,11 +379,11 @@ private:
 
 class Tagger{
     const Dictionary &_dict;
-    mutable Dictionary::FreqInfo _possible_info;
+    mutable SparseVector<int> _possible_info;
     mutable bool _info_gened;
     vector<string> _possible_natures;
 public:
-    Dictionary::FreqInfo *  genPossibleInfo() const {
+    SparseVector<int> *  genPossibleInfo() const {
         if(!_info_gened){
             _possible_info.clear();
             vector<int> freqs;
@@ -411,7 +411,7 @@ public:
         _possible_natures.push_back("p");
     }
     inline bool tagging(const string &utf8Str, vector<Chip>& chips) const{
-        vector<Dictionary::FreqInfo *> infos; 
+        vector<SparseVector<int> *> infos; 
         for( int i = 0; i < chips.size(); i ++){
             Dictionary::FreqInfo * info = _dict.getFreqInfo(utf8Str,chips[i]._start, chips[i]._end);
             if(info == NULL){
@@ -440,7 +440,7 @@ public:
         return tagging(infos,tags);
     }
 
-    inline bool tagging(const vector<Dictionary::FreqInfo *> & infos, vector<string>& tags) const{
+    inline bool tagging(const vector<SparseVector<int> *> & infos, vector<string>& tags) const{
         vector<int> bests;
         viterbi(_dict, infos, bests);
         for(int i = 0; i < bests.size(); i ++){
