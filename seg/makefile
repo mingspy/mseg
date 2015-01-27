@@ -6,17 +6,13 @@ INCLUDE=-I/opt/apps_install/jdk-1.6.0_25/include -I/opt/apps_install/jdk-1.6.0_2
 CC=g++ -O3 
 #CC=g++ -DDEBUG -g 
 
-all:test builder testseg
+all:builder
 .PHONY:all
 
-builder:builder.hpp builder.cpp dict.hpp utils.hpp
+builder:builder.hpp builder.cpp dict.hpp
 	$(CC) builder.cpp -o builder 
-test:testda.cpp dict.hpp datrie.hpp sparse.hpp utils.hpp
-	$(CC) testda.cpp -o test
-testseg:testseg.cpp dict.hpp datrie.hpp sparse.hpp utils.hpp knife.hpp
-	$(CC) testseg.cpp -o testseg
 clean:
-	rm test builder testseg
+	rm builder
 
 #libJSegJNI.so:JSegJNI.cpp
 #	$(CC) -fPIC -shared JSegJNI.cpp -o libJSegJNI.so 

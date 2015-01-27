@@ -26,8 +26,9 @@
 #include <float.h>
 #include <math.h>
 #include "dict.hpp"
-#include "utils.hpp"
-#include "sparse.hpp"
+#include "../util/utils.hpp"
+#include "../util/sparse.hpp"
+#include "../util/minheap.hpp"
 
 using namespace std;
 
@@ -60,8 +61,13 @@ public:
     inline bool operator==(const Chip& other) const{
         return _start == other._start && _end == other._end;
     }
+
     inline bool operator!=(const Chip& other) const{
         return _start != other._start || _end != other._end;
+    }
+
+    inline bool operator<(const Chip& other) const{
+        return _val < other._val;
     }
 };
 
@@ -275,7 +281,9 @@ void genWordGraph(const Dictionary & dict,const string &strUtf8, Graph & graph)
         for(int j = i+1; j < asize; j ++){
             if ((info = dict.getFreqInfo(strUtf8,graph.getOff(i),graph.getOff(j))) != NULL){
                 graph.addChip(Chip(i,j,TYPE_IN_DICT,info->sum()));
-            } else if(!dict.hasPrefix(strUtf8,graph.getOff(i),graph.getOff(j))){ break; }
+            } else if(!dict.hasPrefix(strUtf8,graph.getOff(i),graph.getOff(j))){
+                break; 
+            }
         }
     }
 #ifdef DEBUG
@@ -284,6 +292,13 @@ void genWordGraph(const Dictionary & dict,const string &strUtf8, Graph & graph)
 }
 
 struct Paths{
+#ifdef USE_MINHEAP 
+    MinHeap<Chip> _paths;
+    void addPath(int N, int fromId, int idx, double val){
+        _paths.resize(N);
+        _paths.add_if_small(Chip(fromId,idx,0,val)); 
+    }
+#else
     int maxid;
     vector<Chip> _paths;
     Paths():maxid(-1){}
@@ -308,6 +323,7 @@ struct Paths{
             }
         }
     }
+#endif 
 };
 class NShortPath{
     Graph & _graph;
@@ -340,7 +356,12 @@ public:
         Paths & endpath = _edges[wordid];
         if (idx >= endpath._paths.size()) return false;
         if (!sorted){
+#ifdef USE_MINHEAP
+            endpath._paths.sort();
+#else
             sort(endpath._paths.begin(),endpath._paths.end(), chip_compare_asc);
+#endif
+            sorted = true;
         }
         vector<int> back_ids;
         while(wordid != 0){
@@ -358,7 +379,9 @@ public:
         cout<<"-----------------edges--------------------"<<endl;
         for (map<int,Paths>::iterator it = _edges.begin(); it != _edges.end(); it++){
             cout<<getStart(it->first)<<","<<getEnd(it->first)<<"->";
-            mingspy::print(it->second._paths);
+            for(int i = 0; i < it->second._paths.size();i++){
+                cout<<it->second._paths[i]<<endl;
+            }
         }
         cout<<"------------------------------------------"<<endl;
     }

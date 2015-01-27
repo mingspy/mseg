@@ -4,14 +4,14 @@
 #include "knife.hpp"
 #include "dict.hpp"
 #include <vector>
-#include "sparse.hpp"
-#include "utils.hpp"
+#include "../util/sparse.hpp"
+#include "../util/utils.hpp"
 #include "builder.hpp"
 
 using namespace std;
 namespace mingspy{
 
-void prepair_estimate_data(const char * path = "../data/people/199806.txt"){
+void prepair_estimate_data(const char * path = "../../data/people/199806.txt"){
     LineFileReader reader(path);
     string * line;
     ofstream outf("./est.txt");

@@ -22,8 +22,8 @@
 #include <map>
 #include <cstdlib>
 #include <limits.h>
-#include "datrie.hpp"
-#include "sparse.hpp"
+#include "../util/datrie.hpp"
+#include "../util/sparse.hpp"
 
 using namespace std;
 
@@ -61,7 +61,7 @@ public:
     {
     }
 
-    virtual ~Dictionary()
+    ~Dictionary()
     {
         clear();
     }
@@ -86,7 +86,7 @@ public:
     {
         int wid = 0;
         if(datrie.find(word.c_str(),&wid)) {
-            return wordid;
+            return wid;
         }
         if (!datrie.add(word.c_str(), wordid)) {
             return -1;
@@ -102,7 +102,7 @@ public:
         return wordid;
     }
 
-    virtual int getWordId(const string & word) const
+    int getWordId(const string & word) const
     {
         int id = 0;
         if(datrie.find(word.c_str(),&id)) {
@@ -111,7 +111,7 @@ public:
         return -1;
     }
 
-    virtual int getWordId(const string & word,int start, int end) const
+    int getWordId(const string & word,int start, int end) const
     {
         int id = 0;
         if(datrie.find(word.c_str(),start,end,&id)) {
@@ -136,18 +136,18 @@ public:
         return true;
     }
 
-    virtual const WordInfo * getWordInfo(const string & word) const
+    inline const WordInfo * getWordInfo(const string & word) const
     {
         int wordId = getWordId(word);
         return getWordInfo(wordId);
     }
-    virtual const WordInfo * getWordInfo(const string & word,int start,int end) const
+    inline const WordInfo * getWordInfo(const string & word,int start,int end) const
     {
         int wordId = getWordId(word,start, end);
         return getWordInfo(wordId);
     }
 
-    virtual const WordInfo * getWordInfo(int wordId) const
+    inline const WordInfo * getWordInfo(int wordId) const
     {
         CWIT it = words_info_table.find(wordId);
         if (it != words_info_table.end()) {
@@ -156,7 +156,7 @@ public:
         return NULL;
     }
 
-    virtual const char * getWord(int wordId) const
+    const char * getWord(int wordId) const
     {
         const WordInfo * info = getWordInfo(wordId);
         if (info) {
@@ -165,19 +165,19 @@ public:
         return NULL;
     }
 
-    virtual FreqInfo * getFreqInfo(const string & word,int start,int end) const
+    inline FreqInfo * getFreqInfo(const string & word,int start,int end) const
     {
         int id = getWordId(word,start,end);
         return getFreqInfo(id);
     }
 
-    virtual FreqInfo * getFreqInfo(const string & word) const
+    inline FreqInfo * getFreqInfo(const string & word) const
     {
         int id = getWordId(word);
         return getFreqInfo(id);
     }
 
-    virtual FreqInfo * getFreqInfo(int wordid) const
+    inline FreqInfo * getFreqInfo(int wordid) const
     {
         CWIT it = words_info_table.find(wordid);
         if(it == words_info_table.end()){
@@ -186,7 +186,7 @@ public:
         return it->second.info;
     }
 
-    virtual FreqInfo * operator[](const string & word) const
+    inline FreqInfo * operator[](const string & word) const
     {
         return getFreqInfo(word);
     }
@@ -221,20 +221,20 @@ public:
         return words_info_table[id].info->addAttrFreq(attrId,freq);
     }
 
-    virtual int getAttrFreq(const string & word, int attrId) const
+    int getAttrFreq(const string & word, int attrId) const
     {
         int wordId = getWordId(word);
         return getAttrFreq(wordId,attrId);
     }
 
-    virtual int getAttrFreq(const string & word, const string & attr) const
+    int getAttrFreq(const string & word, const string & attr) const
     {
         int wordId = getWordId(word);
         int attrId = getWordId(attr);
         return getAttrFreq(wordId,attrId);
     }
 
-    virtual int getAttrFreq(int wordId, int attrId) const
+    int getAttrFreq(int wordId, int attrId) const
     {
         CWIT it = words_info_table.find(wordId);
         if (it != words_info_table.end() && it->second.info != NULL) {
@@ -243,7 +243,7 @@ public:
         return 0;
     }
 
-    virtual int getWordFreq(const string & word) const
+    int getWordFreq(const string & word) const
     {
         const FreqInfo * pInfo = getFreqInfo(word);
         if(pInfo != NULL) {
@@ -253,7 +253,7 @@ public:
         return 0;
     }
 
-    virtual int getWordFreq(int wordid) const
+    int getWordFreq(int wordid) const
     {
         const FreqInfo * pInfo = getFreqInfo(wordid);
         if(pInfo != NULL) {
@@ -263,21 +263,21 @@ public:
         return 0;
     }
 
-    virtual bool hasPrefix(const string & prefix) const
+    bool hasPrefix(const string & prefix) const
     {
         return datrie.hasPrefix(prefix.c_str(),0, prefix.length());
     }
 
-	virtual bool hasPrefix(const string & prefix, int start, int end) const
+	bool hasPrefix(const string & prefix, int start, int end) const
     {
         return datrie.hasPrefix(prefix.c_str(),start, end);
     }
 	
-	virtual bool exist(const string & word) const{
+	bool exist(const string & word) const{
 		return datrie.find(word.c_str(),0,word.length());
 	}
 	
-	virtual bool exist(const string & word, int start, int end) const{
+	bool exist(const string & word, int start, int end) const{
 		return datrie.find(word.c_str(),start,end);
 	}
 	
