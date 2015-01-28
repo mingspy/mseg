@@ -279,9 +279,13 @@ void genWordGraph(const Dictionary & dict,const string &strUtf8, Graph & graph)
     int asize = graph.offSize();
     for ( int i = 0; i < asize - 1; i ++){
         for(int j = i+1; j < asize; j ++){
-            if ((info = dict.getFreqInfo(strUtf8,graph.getOff(i),graph.getOff(j))) != NULL){
-                graph.addChip(Chip(i,j,TYPE_IN_DICT,info->sum()));
-            } else if(!dict.hasPrefix(strUtf8,graph.getOff(i),graph.getOff(j))){
+            if (dict.exist(strUtf8,graph.getOff(i),graph.getOff(j))){
+                if ((info = dict.getFreqInfo(strUtf8,graph.getOff(i),graph.getOff(j))) != NULL){
+                     graph.addChip(Chip(i,j,TYPE_IN_DICT,info->sum()));
+                }else{
+                     graph.addChip(Chip(i,j,TYPE_IN_DICT));
+                }
+            }else if(!dict.hasPrefix(strUtf8,graph.getOff(i),graph.getOff(j))){
                 break; 
             }
         }
