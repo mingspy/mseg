@@ -123,12 +123,7 @@ double viterbi( const Dictionary & dict, const vector<SparseVector<int> *> & Obs
 				}
 			}
 			psi[ t ].setAttrVal(j,index);
-#ifdef DEBUG
-            cout<<"t="<<t<<"state="<<dict.getWord(state_cur)<<
-                "(Observs[t]->sum() + 1.0)"<<(Observs[t]->sum() + 1.0)
-                <<" dict.getWordFreq(state_cur) + 10.0)"
-                <<dict.getWordFreq(state_cur) + 10.0<<endl;
-#endif
+
 			double emitProb = -log((Observs[t]->getVal(j) + 1.0)/ (dict.getWordFreq(state_cur) + 10.0));
 			assert(emitProb >= 0);
 			delta[ t ].setAttrVal(j, minProb + emitProb);
@@ -185,7 +180,6 @@ public:
     }
 
     inline int rowSize() const { 
-        if (_ended) return rows.size() - 1;
         return rows.size();
     } 
     vector<Chip> & getChips(int row){ 
@@ -343,11 +337,11 @@ public:
          for(int i = 0; i < chips.size(); i++){
              addPathWeight(mkId(chips[i]._start,chips[i]._end),0,0,0);
          }
-        int rsize = _graph.rowSize();
+        int rsize = _graph.rowSize() - 1;
         for (int i = 0; i < rsize; i++){
             vector<Chip > & nodes =  _graph.getChips(i);
             for(int j = 0; j < nodes.size(); j++){
-                assert(nodes[j]._start == i);
+                //assert(nodes[j]._start == i);
                 relax(nodes[j]);
             }
         }
@@ -404,6 +398,53 @@ private:
     }
 };
 
+class ShortPath{
+    struct Point{
+        Point(int f = 0, double v = DBL_MAX):from(f),val(v){}
+        int from;
+        double val;
+    };
+    Graph & _graph;
+public:
+    ShortPath(Graph & graph):_graph(graph)
+    {
+    }
+
+    void getBestPath(vector<Chip> & result){
+        // 1. initial weights
+        // 2.calc weights:
+        int rsize = _graph.offSize();
+        Point *points = new Point[rsize];
+        points[0].val = 0;
+        for (int i = 0; i < rsize - 1; i++){
+            vector<Chip > & nodes =  _graph.getChips(i);
+            for(int j = 0; j < nodes.size(); j++){
+                Chip & chip = nodes[j]; // 当前节点可到达的下一节点
+                double weight = points[i].val + chip._val;
+                if( points[chip._end].val > weight){
+                    points[chip._end].val = weight;
+                    points[chip._end].from = i;
+                }
+            }
+        }
+#ifdef DEBUG
+        cout<<"short path"<<endl;
+        for( int i = 0; i< rsize; i++){
+            cout<<i<<"->"<<points[i].from<<" "<<points[i].val<<endl;
+        }
+#endif
+        vector<int> backoff;
+        for(int i = rsize - 1; i > 0;){
+            backoff.push_back(i);
+            i = points[i].from;
+        }
+        backoff.push_back(0);
+        for(int i = backoff.size() - 1; i > 0;i--){
+            result.push_back(Chip(_graph.getOff(backoff[i]),_graph.getOff(backoff[i - 1])));
+        }
+        delete [] points;
+    }
+};
 class Tagger{
     const Dictionary &_dict;
     mutable SparseVector<int> _possible_info;
@@ -640,9 +681,14 @@ public:
         genWordGraph(*dict, strUtf8, graph);
         graph.calcWeights(dict->getWordFreq(WORDS_FREQ_TOTAL));
         graph.end();
-        NShortPath npath(graph, 8);
+#ifdef NSHORTPATH
+        NShortPath npath(graph, 6);
         npath.calc();
         npath.getBestPath(0,result);
+#else
+        ShortPath shortPath(graph);
+        shortPath.getBestPath(result);
+#endif
     }
 };
 

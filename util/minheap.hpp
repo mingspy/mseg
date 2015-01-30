@@ -53,7 +53,7 @@ template<typename T>
 class MinHeap
 {
 public:
-    MinHeap(int cap = 10):_size(0), _capability(cap)
+    MinHeap(int cap = 0):_size(0), _capability(cap)
     {
         A = new T[cap];
     }

@@ -139,7 +139,8 @@ void split(const string& src, const string& separator, vector<string>& result)
     do {
         index = str.find_first_of(separator,start);
         if (index != string::npos) {
-            result.push_back(str.substr(start,index - start));
+            if ((index - start ) > 0)
+                result.push_back(str.substr(start,index - start));
             start = str.find_first_not_of(separator,index);
             if (start == string::npos) return;
         }
@@ -222,6 +223,13 @@ inline bool startswith(const string & str, const string & sub)
 inline bool endswith(const string & str, const string & sub)
 {
     return str.compare(str.length() - sub.length(),sub.length(),sub) == 0;
+}
+
+inline bool equal(const string & str1, const string & str2, int start,int end){
+    int i = 0;
+    int j = start; 
+    for (;i < str1.length() && j < end && str1[i] == str2[j];i++,j++);
+    return i == str1.length() && j == end;
 }
 
 inline bool  isPunc(const string &str){

@@ -7,6 +7,7 @@
 #include "../util/sparse.hpp"
 #include "../util/utils.hpp"
 #include "builder.hpp"
+#include "mseg.hpp"
 
 using namespace std;
 namespace mingspy{
@@ -97,7 +98,8 @@ public:
                 chips.clear();
                 splited.push_back(vector<string>());
                 tsize += testdata[i].length();
-                knife.split(testdata[i],chips);
+                //knife.split(testdata[i],chips);
+                mseg_split(knife, testdata[i],chips);
                 substrs(testdata[i],chips,splited[i]);
             }
         }
