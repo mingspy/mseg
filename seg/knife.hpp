@@ -230,7 +230,11 @@ public:
         }
     }
 
-    inline void clear() {rows.clear();offs.clear();}
+    inline void clear() {offs.clear();
+        for(int i = 0; i < rows.size(); i++){
+            rows[i].clear();
+        }
+    }
     void print(){
         cout<<"-------------------------graph----------------"<<endl;
         cout<<"offs->";
@@ -635,8 +639,67 @@ public:
         dict = refdict;
         setName("--* unigram: a unitary gram tokenizer *--");
     }
+#ifdef BREAKDOWN 
+    void split(const string &strUtf8, vector<Chip> & chips) const{
+        int split_len = 120;
+        int slen = strUtf8.length();
+        Graph graph;
+        if (slen <= split_len){
+            dosplit(strUtf8, chips, graph);
+            return;
+        }
+        static string puncs[] = {"。",",","，","!"," ","\n","！"};
+        int puncs_size = 7;
+        // sentance split to litte sentance
+        int start = 0;
+        int end = split_len; 
+        while(end < slen){
+            int nxt = end + utf8_char_len(strUtf8[end]);
+            for(int k = 0; k< puncs_size; k ++){
+                if (equal(puncs[k], strUtf8, end, nxt)){
+                    vector<Chip> result;
+                    dosplit(strUtf8.substr(start, nxt - start),result,graph);
+                    for(int m = 0; m < result.size(); m++){
+                        result[m]._start += start;
+                        result[m]._end += start;
+                        chips.push_back(result[m]);
+                    }
+                    start = nxt;
+                    end = nxt + split_len;
+                    break;
+                }
+            }
 
-    virtual void split(const string &strUtf8, vector<Chip> & result) const
+            if (start == nxt) continue;
+            else end = nxt;
+        }
+
+        if (start < slen){
+            vector<Chip> result;
+            dosplit(strUtf8.substr(start, slen - start),result, graph);
+            for(int m = 0; m < result.size(); m++){
+                result[m]._start += start;
+                result[m]._end += start;
+                chips.push_back(result[m]);
+            }
+        }
+    }
+private:
+    void dosplit(const string &strUtf8, vector<Chip> & result, Graph & graph) const
+    {
+        genWordGraph(*dict, strUtf8, graph);
+        graph.calcLogProb(dict->getWordFreq(WORDS_FREQ_TOTAL));
+#ifdef NSHORTPATH
+        NShortPath npath(graph, 6);
+        npath.calc();
+        npath.getBestPath(0,result);
+#else
+        ShortPath shortPath(graph);
+        shortPath.getBestPath(result);
+#endif
+    }
+#else
+    void split(const string &strUtf8, vector<Chip> & result) const
     {
         Graph graph;
         genWordGraph(*dict, strUtf8, graph);
@@ -650,6 +713,7 @@ public:
         shortPath.getBestPath(result);
 #endif
     }
+#endif
 };
 
 }

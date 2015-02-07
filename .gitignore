@@ -42,19 +42,13 @@ Network Trash Folder
 Temporary Items
 .apdisk
 
-test
-
 *.da
 
 builder
-
 core.dic
-
 testseg
 mseg.tar
-util/test_socket
 *.dic
 *.tar
-*.tar
-*.swo
 *.bk
+*.swo
