@@ -56,3 +56,5 @@ util/test_socket
 *.dic
 *.tar
 *.tar
+*.swo
+*.bk

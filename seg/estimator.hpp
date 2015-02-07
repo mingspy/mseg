@@ -12,106 +12,81 @@
 using namespace std;
 namespace mingspy{
 
-void prepair_estimate_data(const char * path = "../../data/people/199806.txt"){
-    LineFileReader reader(path);
-    string * line;
-    ofstream outf("./est.txt");
-    while(line = reader.getLine()){
-        string data = trim(*line);
-        if(data.empty()) continue;
-        vector<string> tokens;
-        split(data," ",tokens);
-        vector<PeopleEntity> vec;
-        string testdata;
-        string result;
-        try {
-            parsePeopleEntities(tokens,vec);
-            for(int i = 0; i < vec.size(); i++) {
-                PeopleEntity & ent = vec[i];
-                if (ent.isCompose) {
-                    for(int j = 0; j < ent.sub.size(); j++) {
-                        testdata+=ent.sub[j].word;
-                        if(!result.empty()) result += " ";
-                        result+=ent.sub[j].word;
-                    }
-                } else {
-                    testdata+=ent.word;
-                    if(!result.empty()) result += " ";
-                    result+=ent.word;
-                }
-            }
-            outf<<"@testdata"<<endl<<testdata<<endl<<"@testresult"<<endl<<result<<endl;
-        }catch(parse_error e) {
-            cerr<<"parse error"<<endl;
-        }
-    }
-}
-
 class Estimator{
 private:
-    vector<string> testdata;
-    vector<vector<string> > testresult;
-public:
-    Estimator(const string & testdatafile){
-        LineFileReader reader(testdatafile);
-        string *line;
-        bool is_test_data = false;
-        bool is_test_result = false;
+    vector<string> est_data;
+    vector<vector<string> > est_refer;
+    void prepair_estimate_data(const char * path){
+        LineFileReader reader(path);
+        string * line;
         while(line = reader.getLine()){
             string data = trim(*line);
-            if (data.empty()){ continue; }
-            if (startswith(data,"@testdata")){
-                is_test_data = true;
-                is_test_result = false;
-                continue;
-            }else if(startswith(data,"@testresult")){
-                is_test_data = false;
-                is_test_result = true;
-                continue;
-            }
-            if (is_test_data){
-                testdata.push_back(data);
-            }
-            else if(is_test_result){
-                testresult.push_back(vector<string>());
-                split(data, " ",testresult[testresult.size()-1]);
+            if(data.empty()) continue;
+            vector<string> tokens;
+            split(data," ",tokens);
+            vector<PeopleEntity> vec;
+            try {
+                parsePeopleEntities(tokens,vec);
+                string test_str;
+                vector<string > result;
+                for(int i = 0; i < vec.size(); i++) {
+                    PeopleEntity & ent = vec[i];
+                    if (ent.isCompose) {
+                        for(int j = 0; j < ent.sub.size(); j++) {
+                            test_str+=ent.sub[j].word;
+                            result.push_back(ent.sub[j].word);
+                        }
+                    } else {
+                        test_str+=ent.word;
+                        result.push_back(ent.word);
+                    }
+                }
+                est_data.push_back(test_str);
+                est_refer.push_back(result);
+            }catch(parse_error e) {
+                cerr<<"parse error"<<endl;
             }
         }
-        assert(testdata.size() == testresult.size());
+    }
+
+public:
+    Estimator(const char * est_datafile = "../../data/people/199806.txt"){
+        prepair_estimate_data(est_datafile);
+        assert(est_data.size() == est_refer.size());
     }
 
     void estimate(const IKnife & knife){
         cout<<"-------------------------------------------"<<endl;
         cout<<"estimating"<<knife.getName()<<endl;
-        assert(testdata.size() == testresult.size());
+        assert(est_data.size() == est_refer.size());
         vector<vector<string> > splited;
         vector<Chip> chips;
         double tsize = 0;
         int times = 1024;
-        if (testdata.size() > 1000){
+        if (est_data.size() > 1000){
             times = 1;
         }
         Timer timer;
         for(int j = 0; j< times; j++){
             splited.clear();
-            for(int i = 0; i < testdata.size(); i++){
+            for(int i = 0; i < est_data.size(); i++){
                 chips.clear();
                 splited.push_back(vector<string>());
-                tsize += testdata[i].length();
-                //knife.split(testdata[i],chips);
-                mseg_split(knife, testdata[i],chips);
-                substrs(testdata[i],chips,splited[i]);
+                tsize += est_data[i].length();
+                knife.split(est_data[i],chips);
+                //mseg_split(knife, est_data[i],chips);
+                substrs(est_data[i],chips,splited[i]);
             }
         }
         double elapsed = timer.elapsed();
         int total = 0;
         int ttotal = 0;
         int correct = 0;
-        for(int i = 0; i < testresult.size(); i++){
-            bool * visited = new bool [testresult[i].size()];
-            memset(visited, 0, sizeof(bool) * testresult[i].size());
-            for(int k = 0; k < testresult[i].size(); k ++){
-                if (isPunc(testresult[i][k])){
+        for(int i = 0; i < est_refer.size(); i++){
+            bool * visited = new bool [est_refer[i].size()];
+            memset(visited, 0, sizeof(bool) * est_refer[i].size());
+            for(int k = 0; k < est_refer[i].size(); k ++){
+                if (isPunc(est_refer[i][k])){
                     visited[k] = true;
                 }else{
                     ttotal ++;
@@ -122,8 +97,8 @@ public:
                 if (isPunc(splited[i][j])) continue;
                 total ++;
                 bool found = false;
-                for(int k = 0; k < testresult[i].size(); k ++){
-                    if(!visited[k] && splited[i][j] == testresult[i][k]){
+                for(int k = 0; k < est_refer[i].size(); k ++){
+                    if(!visited[k] && splited[i][j] == est_refer[i][k]){
                         found = true;
                         visited[k] = true;
                         break;
@@ -152,7 +127,7 @@ private:
     vector<vector<string> >  _data;
     vector<vector<string> >  _result;
 public:
-    TaggerEstimator(const string & path = "../data/people/199801.txt"){
+    TaggerEstimator(const string & path = "../../data/people/199801.txt"){
         LineFileReader reader(path);
         string * line;
         while(line = reader.getLine()){

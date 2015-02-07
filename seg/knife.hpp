@@ -84,6 +84,28 @@ bool chip_compare_asc(const Chip & o1, const Chip & o2){
     if (d <= -0.00000001) return true;
     return false;
 }
+void print(const vector<Chip> & chips){
+    for(int i = 0; i< chips.size(); i++) {
+        cout<<chips[i];
+    }
+    cout<<endl;
+}
+
+void print(const string & str, const vector<Chip> & chips)
+{
+    for(int i = 0; i< chips.size(); i++) {
+        cout<<"'"<<str.substr(chips[i]._start,chips[i]._end - chips[i]._start)<<"'  ";
+    }
+    cout<<endl;
+}
+
+void substrs(const string & str, const vector<Chip> & chips, vector<string> & result)
+{
+    for(int i = 0; i< chips.size(); i++) {
+        result.push_back(str.substr(chips[i]._start,chips[i]._end - chips[i]._start));
+    }
+}
+
 
 double viterbi( const Dictionary & dict, const vector<SparseVector<int> *> & Observs, vector<int> & bestPos)
 {
@@ -157,54 +179,58 @@ double viterbi( const Dictionary & dict, const vector<SparseVector<int> *> & Obs
 	assert(minProb >=0);
 	return minProb;
 }
-	
+
+struct Vetex{
+    int id;
+    double val;
+    Vetex(int vid = 0, double v = 0):id(vid),val(v){}
+};
+
 class Graph{
-    vector<vector<Chip> > rows;
+private:
     vector<int> offs;
+    vector<vector<Vetex> > rows;
     void ensureRow(int row){
-        while(rows.size() <= row){ rows.push_back(vector<Chip>());}
+        while(rows.size() <= row){ rows.push_back(vector<Vetex>());}
     }
-    bool _ended;
 public:
-    inline void addOff(int off) {offs.push_back(off);}
-    inline int getOff(int id) { return offs[id];}
-    inline int offSize() { return offs.size();}
-    inline void addChip(const Chip & chip) {
-        assert(!_ended);
-        ensureRow(chip._start);
-        vector<Chip>::iterator it = find(rows[chip._start].begin(),rows[chip._start].end(),chip);
-        if (it == rows[chip._start].end())
-            rows[chip._start].push_back(chip);
-        else *it = chip;
-
+    inline void push(int off) {offs.push_back(off);}
+    inline int get(int id) { return offs[id];}
+    inline int size() { return offs.size();}
+    inline void setVetex(int row, int col, double val) {
+        ensureRow(row);
+        vector<Vetex> & r = rows[row];
+        int N = r.size();
+        for (int i = 0; i < N; i++){
+            if(r[i].id == col){
+                r[i].val = val;
+                return;
+            }
+        }
+        r.push_back(Vetex(col,val));
     }
 
-    inline int rowSize() const { 
-        return rows.size();
-    } 
-    vector<Chip> & getChips(int row){ 
+    inline vector<Vetex> & getVetexs(int row){ 
         assert(row < rows.size());
         return rows[row];
     }
-    Chip & getChip(int row,int col){ return rows[row][col]; }
-    void calcWeights(double totalFreq){
-        for (int i = 0; i < rows.size(); i ++){
-            for(int j = 0; j < rows[i].size(); j++){
-                rows[i][j]._val = -log((rows[i][j]._val + 1.0)/totalFreq);
+
+    inline vector<Vetex> & operator[](int row){
+        assert(row < rows.size());
+        return rows[row];
+    } 
+    
+    void calcLogProb(double totalFreq){
+        const int R = rows.size();
+        for (int i = 0; i < R; i ++){
+            const int C = rows[i].size();
+            for(int j = 0; j < C; j++){
+                rows[i][j].val = -log((rows[i][j].val + 1.0)/totalFreq);
             }
         }
     }
 
-    inline void start() {rows.clear();offs.clear();_ended = false;}
-    // add last one as an tombstone 
-    void end(){
-        addChip(Chip(rows.size(), 0, 0, 0));
-        _ended = true;
-    }
-
-    int  getEndChipId(){
-        return mkId(rows.size() - 1, 0);
-    }
+    inline void clear() {rows.clear();offs.clear();}
     void print(){
         cout<<"-------------------------graph----------------"<<endl;
         cout<<"offs->";
@@ -216,46 +242,23 @@ public:
         for(int i = 0; i < rows.size(); i++){
             cout<<"\t"<<i<<":";
             for(int j = 0; j < rows[i].size();j++){
-                cout<<rows[i][j];
+                cout<<"("<<rows[i][j].id<<","<<rows[i][j].val<<")";
             } 
             cout<<endl;
         }
         cout<<endl;
         cout<<"----------------------------------------------"<<endl;
     }
-    Graph():_ended(false){}
 };
-
-void print(const vector<Chip> & chips){
-    for(int i = 0; i< chips.size(); i++) {
-        cout<<chips[i];
-    }
-    cout<<endl;
-}
-
-void print(const string & str, const vector<Chip> & chips)
-{
-    for(int i = 0; i< chips.size(); i++) {
-        cout<<"'"<<str.substr(chips[i]._start,chips[i]._end - chips[i]._start)<<"'  ";
-    }
-    cout<<endl;
-}
-
-void substrs(const string & str, const vector<Chip> & chips, vector<string> & result)
-{
-    for(int i = 0; i< chips.size(); i++) {
-        result.push_back(str.substr(chips[i]._start,chips[i]._end - chips[i]._start));
-    }
-}
 
 void genWordGraph(const Dictionary & dict,const string &strUtf8, Graph & graph)
 {
     // 1. push all sigle atom word into graph
-    graph.start();
+    graph.clear();
     vector<int> atom_offs;
     int len = strUtf8.length();
     int row = 0;
-    graph.addOff(0);
+    graph.push(0);
     for(int i = 0; i < len; ) {
         int next = utf8_next_estr(strUtf8,i);
         int tp = TYPE_ESTR;
@@ -263,23 +266,22 @@ void genWordGraph(const Dictionary & dict,const string &strUtf8, Graph & graph)
             tp = TYPE_ATOM;
             next  = i + utf8_char_len(strUtf8[i]);
         }
-        graph.addChip(Chip(row,row+1,tp));
-        graph.addOff(next);
+        graph.setVetex(row,row+1,1);
+        graph.push(next);
         row ++;
         i = next;
     }
     // 2. find all possible word
     Dictionary::FreqInfo *info = NULL;
-    int asize = graph.offSize();
-    for ( int i = 0; i < asize - 1; i ++){
-        for(int j = i+1; j < asize; j ++){
-            if (dict.exist(strUtf8,graph.getOff(i),graph.getOff(j))){
-                if ((info = dict.getFreqInfo(strUtf8,graph.getOff(i),graph.getOff(j))) != NULL){
-                     graph.addChip(Chip(i,j,TYPE_IN_DICT,info->sum()));
+    for ( int i = 0; i < row; i ++){
+        for(int j = i+1; j <= row; j ++){
+            if (dict.exist(strUtf8,graph.get(i),graph.get(j))){
+                if (info = dict.getFreqInfo(strUtf8,graph.get(i),graph.get(j))){
+                     graph.setVetex(i,j,info->sum());
                 }else{
-                     graph.addChip(Chip(i,j,TYPE_IN_DICT));
+                     graph.setVetex(i,j,1);
                 }
-            }else if(!dict.hasPrefix(strUtf8,graph.getOff(i),graph.getOff(j))){
+            }else if(!dict.hasPrefix(strUtf8,graph.get(i),graph.get(j))){
                 break; 
             }
         }
@@ -289,60 +291,33 @@ void genWordGraph(const Dictionary & dict,const string &strUtf8, Graph & graph)
 #endif
 }
 
-struct Paths{
-#ifdef USE_MINHEAP 
-    MinHeap<Chip> _paths;
-    void addPath(int N, int fromId, int idx, double val){
-        _paths.resize(N);
-        _paths.add_if_small(Chip(fromId,idx,0,val)); 
-    }
-#else
-    int maxid;
-    vector<Chip> _paths;
-    Paths():maxid(-1){}
-    void addPath(int N, int fromId, int idx, double val){
-        if(_paths.size() < N){
-           _paths.push_back(Chip(fromId,idx,0,val)); 
-        }else{
-            double max_val = -1000000;
-            if(maxid == -1){
-                for(int i = 0; i < _paths.size(); i ++){
-                    if(_paths[i]._val > max_val){
-                        maxid = i;
-                        max_val = _paths[i]._val;
-                    }
-                }
-            }
-            if(val < _paths[maxid]._val){
-                _paths[maxid]._start = fromId;
-                _paths[maxid]._end = idx;
-                _paths[maxid]._val = val;
-                maxid = -1;
-            }
-        }
-    }
-#endif 
-};
 class NShortPath{
     Graph & _graph;
-    map<int, Paths> _edges;
-    const int N;
+    MinHeap<Chip> *  _edges;
     bool sorted;
 public:
-    NShortPath(Graph & graph, int n):_graph(graph),N(n),sorted(false){}
+    NShortPath(Graph & graph, int n):_graph(graph),sorted(false){
+        _edges = new MinHeap<Chip>[_graph.size()];
+        for(int i = 0; i < graph.size(); i++){
+            _edges[i].resize(n);
+        }
+    }
+    ~NShortPath(){delete [] _edges;};
     void calc(){
         // 1. initial weights
         // 2.calc weights:
-         vector<Chip > &chips =  _graph.getChips(0);
-         for(int i = 0; i < chips.size(); i++){
-             addPathWeight(mkId(chips[i]._start,chips[i]._end),0,0,0);
-         }
-        int rsize = _graph.rowSize() - 1;
+        _edges[0].add_if_small(Chip(-1,-1,0));
+        int rsize = _graph.size() - 1;// 最后一个为结束节点，不参与计算
         for (int i = 0; i < rsize; i++){
-            vector<Chip > & nodes =  _graph.getChips(i);
-            for(int j = 0; j < nodes.size(); j++){
-                //assert(nodes[j]._start == i);
-                relax(nodes[j]);
+            // 当前节点的路径
+            MinHeap<Chip> & paths = _edges[i];
+            // 当前节点可到达的节点集合
+            vector<Vetex> & nexts =  _graph.getVetexs(i);
+            for (int j = 0; j < paths.size(); j++){
+                for(int k = 0; k < nexts.size(); k++){
+                    double weight = paths[j]._val + nexts[k].val;
+                    _edges[nexts[k].id].add_if_small(Chip(i,j,0,weight));
+                }
             }
         }
 #ifdef DEBUG
@@ -350,51 +325,36 @@ public:
 #endif
     }
     bool getBestPath(int idx, vector<Chip> & result){
-        int wordid = _graph.getEndChipId();
-        Paths & endpath = _edges[wordid];
-        if (idx >= endpath._paths.size()) return false;
+        int last = _graph.size() - 1;
+        MinHeap<Chip> & endpath = _edges[last];
+        if (idx >= endpath.size()) return false;
         if (!sorted){
-#ifdef USE_MINHEAP
-            endpath._paths.sort();
-#else
-            sort(endpath._paths.begin(),endpath._paths.end(), chip_compare_asc);
-#endif
+            endpath.sort();
             sorted = true;
         }
-        vector<int> back_ids;
-        while(wordid != 0){
-            Chip & cp = _edges[wordid]._paths[idx];
-            wordid = cp._start;
+        vector<int> backoff;
+        while(last != -1){
+            backoff.push_back(last);
+            Chip & cp = _edges[last][idx];
             idx = cp._end;
-            if (wordid != 0) back_ids.push_back(wordid);
+            last = cp._start;
         }
-        for(int i = back_ids.size() - 1; i >= 0;i--){
-            result.push_back(Chip(_graph.getOff(getStart(back_ids[i])),_graph.getOff(getEnd(back_ids[i]))));
+        for(int i = backoff.size() - 1; i > 0;i--){
+            result.push_back(Chip(_graph.get(backoff[i]),_graph.get(backoff[i - 1])));
         }
         return true;
     }
     void print(){
         cout<<"-----------------edges--------------------"<<endl;
-        for (map<int,Paths>::iterator it = _edges.begin(); it != _edges.end(); it++){
-            cout<<getStart(it->first)<<","<<getEnd(it->first)<<"->";
-            for(int i = 0; i < it->second._paths.size();i++){
-                cout<<it->second._paths[i]<<endl;
+        for (int i = 0; i < _graph.size(); i ++){
+            cout<<i<<":";
+            MinHeap<Chip> & heap = _edges[i];
+            for(int j = 0; j < heap.size();j++){
+                cout<<heap[j]<<" ";
             }
+            cout<<endl;
         }
         cout<<"------------------------------------------"<<endl;
-    }
-private:
-    void relax(const Chip & chip){
-        int chipid = mkId(chip._start, chip._end);
-        vector<Chip > & nexts =  _graph.getChips(chip._end);
-        for(int j = 0; j < nexts.size(); j++){
-            for(int i = 0; i < _edges[chipid]._paths.size(); i++){
-                addPathWeight(mkId(nexts[j]._start,nexts[j]._end), chipid, i, _edges[chipid]._paths[i]._val+chip._val);
-            }
-        }
-    }
-    inline void addPathWeight(int id, int fromId, int idx, double val){
-        _edges[id].addPath(N,fromId,idx,val);
     }
 };
 
@@ -413,17 +373,17 @@ public:
     void getBestPath(vector<Chip> & result){
         // 1. initial weights
         // 2.calc weights:
-        int rsize = _graph.offSize();
+        int rsize = _graph.size();
         Point *points = new Point[rsize];
         points[0].val = 0;
         for (int i = 0; i < rsize - 1; i++){
-            vector<Chip > & nodes =  _graph.getChips(i);
-            for(int j = 0; j < nodes.size(); j++){
-                Chip & chip = nodes[j]; // 当前节点可到达的下一节点
-                double weight = points[i].val + chip._val;
-                if( points[chip._end].val > weight){
-                    points[chip._end].val = weight;
-                    points[chip._end].from = i;
+            vector<Vetex > & vts =  _graph.getVetexs(i);
+            for(int j = 0; j < vts.size(); j++){
+                Vetex & chip = vts[j]; // 当前节点可到达的下一节点
+                double weight = points[i].val + chip.val;
+                if( points[chip.id].val > weight){
+                    points[chip.id].val = weight;
+                    points[chip.id].from = i;
                 }
             }
         }
@@ -440,7 +400,7 @@ public:
         }
         backoff.push_back(0);
         for(int i = backoff.size() - 1; i > 0;i--){
-            result.push_back(Chip(_graph.getOff(backoff[i]),_graph.getOff(backoff[i - 1])));
+            result.push_back(Chip(_graph.get(backoff[i]),_graph.get(backoff[i - 1])));
         }
         delete [] points;
     }
@@ -470,7 +430,7 @@ public:
         return &_possible_info;
     }
 public:
-    explicit Tagger(Dictionary & dict):_dict(dict),_info_gened(false){
+    explicit Tagger(const Dictionary & dict):_dict(dict),_info_gened(false){
         _possible_natures.push_back("n");
         _possible_natures.push_back("a");
         _possible_natures.push_back("v");
@@ -521,6 +481,7 @@ public:
 class IKnife
 {
 public:
+    //IKnife(const Dictionary * the_dict):dict(the_dict){}
     virtual ~IKnife(){}
     /*
      * split out the str, then save the (start,end) into vector.
@@ -528,11 +489,11 @@ public:
      * @param result : result words
      */
     virtual void split(const string &strUtf8, vector<Chip> & result) const = 0;
-	void setDict(Dictionary * pdict){dict = pdict;}
+	//void setDict(Dictionary * pdict){dict = pdict;}
     void setName(const string & name){myname = name;}
     string getName() const {return myname;}
 protected:
-	Dictionary * dict;
+	const Dictionary * dict;
     string myname;
 };
 
@@ -549,9 +510,9 @@ protected:
 class Flycutter: public IKnife
 {
 public:
-    Flycutter(Dictionary * refdict = NULL)
+    Flycutter(const Dictionary * refdict)
     {
-        setDict(refdict);
+        dict = refdict;
         setName("--* Lee's fly cutter: a forward max match tokenizer *--");
     }
 
@@ -592,8 +553,8 @@ public:
 class Renda: public IKnife
 {
 public:
-    Renda(Dictionary * refdict = NULL) {
-        setDict(refdict);
+    Renda(const Dictionary * refdict){
+        dict = refdict;
         setName("--* renda: a backward max match tokenizer *--");
     }
 
@@ -637,8 +598,8 @@ public:
  */
 class Paoding:public IKnife{
 public:
-    Paoding(Dictionary * refdict = NULL) {
-        setDict(refdict);
+    Paoding(const Dictionary * refdict){
+        dict = refdict;
         setName("--* paoding: a full words tokenizer *--");
     }
 
@@ -670,8 +631,8 @@ public:
 
 class Unigram:public IKnife{
 public:
-    Unigram(Dictionary * refdict = NULL) {
-        setDict(refdict);
+    Unigram(const Dictionary * refdict){
+        dict = refdict;
         setName("--* unigram: a unitary gram tokenizer *--");
     }
 
@@ -679,8 +640,7 @@ public:
     {
         Graph graph;
         genWordGraph(*dict, strUtf8, graph);
-        graph.calcWeights(dict->getWordFreq(WORDS_FREQ_TOTAL));
-        graph.end();
+        graph.calcLogProb(dict->getWordFreq(WORDS_FREQ_TOTAL));
 #ifdef NSHORTPATH
         NShortPath npath(graph, 6);
         npath.calc();
@@ -692,63 +652,5 @@ public:
     }
 };
 
-class Mixture:public IKnife{
-public:
-    Mixture(Dictionary * refdict = NULL) {
-        setDict(refdict);
-        setName("--* Mixture: strategy tokenizer using cutter,renda,unigram *--");
-    }
-
-    virtual void split(const string &strUtf8, vector<Chip> & result) const
-    {
-        vector<Chip> r1;
-        Flycutter cutter(dict);
-        cutter.split(strUtf8, r1);
-        vector<Chip> r2;
-        Renda renda(dict);
-        renda.split(strUtf8,r2);
-        if (!diff(r1,r2)){
-            result = r2;
-            return;
-        }
-
-        // gen graph
-        Graph graph;
-        map<int,int> off2row;
-        int i = 0, j = 0, row = 0, off = 0;
-        graph.addOff(0);
-        off2row[0]=0;
-        for(; i < r1.size() && j < r2.size();){
-            if(r1[i]._end == r2[j]._end){ off = r1[i]._end; i++; j++;
-            }else if(r1[i]._end < r2[j]._end){ off = r1[i]._end; i++;
-            }else{ off = r2[j]._end; j++; }
-            graph.addOff(off);
-            ++row;
-            off2row[off] = row;
-        }
-        Dictionary::FreqInfo *info = NULL;
-        double freq = 0;
-        for(i = 0; i < r1.size(); i++){
-            freq = 0;
-            if ((info = dict->getFreqInfo(strUtf8,r1[i]._start,r1[i]._end)) != NULL){
-                freq = info->sum();
-            }
-            graph.addChip(Chip(off2row[r1[i]._start],off2row[r1[i]._end],-1,freq));
-        }
-
-        for(i = 0; i < r2.size(); i++){
-            freq = 0;
-            if ((info = dict->getFreqInfo(strUtf8,r2[i]._start,r2[i]._end)) != NULL){
-                freq = info->sum();
-            }
-            graph.addChip(Chip(off2row[r2[i]._start],off2row[r2[i]._end],-1,freq));
-        }
-        graph.calcWeights(dict->getWordFreq(WORDS_FREQ_TOTAL));
-        graph.end();
-        NShortPath npath(graph, 8);
-        npath.calc();
-        npath.getBestPath(0,result);
-    }
-
-};
 }
+

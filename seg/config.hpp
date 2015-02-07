@@ -41,14 +41,12 @@ static const string DEFAULT_UDF_DICT_PATH = "/opt/apps/mseg/data/userDicts/";
 #endif
 static const string DEFAULT_ISLOAD_INVS = "false";
 
-static const string ENV_mseg_CONF_PATH = "mseg_CONF_PATH"; // seg config key in environment
+static const string ENV_MSEG_CONF_PATH = "MSEG_CONF_PATH"; // seg config key in environment
 // keys in config file :
 static const string KEY_CONF_PATH = "CONF_PATH";
 static const string KEY_CORE_PATH = "CORE_DICT_PATH";
 static const string KEY_INVS_PATH = "INVS_DICT_PATH";
 static const string KEY_UDF_DICT_PATH = "UDF_DICT_PATH";
-static const string KEY_ISLOAD_INVS = "ISLOAD_INVS";
-
 static ResGuard _confGuard;
 
 /*
@@ -110,6 +108,9 @@ public:
     Config()
     {
         loadSettings();
+    }
+    config(const string & config_path){
+        loadSettingsFromConf(path);
     }
 private:
     void loadSettings()

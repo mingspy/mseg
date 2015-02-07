@@ -178,7 +178,7 @@ public:
 
     T & operator[](int idx)
     {
-        assert (_size > idx); //
+        assert (idx<_size); //
         return A[idx];
     }
 
