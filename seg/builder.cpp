@@ -27,13 +27,11 @@ int main(int argc, char ** argv)
     mingspy::Builder builder;
     vector<string> files;
     getFiles("../../data/people/",files);
-    if(argc > 1)
-    {
+    if(argc > 1) {
         cout<<"building inverse dictionary"<<endl;
         builder.setInverse(true);
         builder.buildFromPeopleDaily(files,"./inverse.dic");
-    }
-    else{
+    } else {
         cout<<"building core dictionary"<<endl;
         builder.buildFromPeopleDaily(files,"./core.dic");
     }

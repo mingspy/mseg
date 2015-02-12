@@ -25,8 +25,10 @@
 #include <netinet/in.h>
 
 #pragma once
-namespace mingspy{
-class Socket{
+namespace mingspy
+{
+class Socket
+{
 };
 
 }

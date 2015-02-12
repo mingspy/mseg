@@ -116,7 +116,10 @@ public:
         return _sum;
     }
 
-    inline int size()const {return _size;}
+    inline int size()const
+    {
+        return _size;
+    }
 
     /**
      * Sets a specific value in the instance to the given value (internal
@@ -273,7 +276,8 @@ public:
         init();
     }
 private:
-    inline void init(){
+    inline void init()
+    {
         _size = 0;
         _cells = NULL;
         _sum = (T)0;
@@ -340,16 +344,20 @@ private:
 };
 
 template<class T>
-class Matrix{
+class Matrix
+{
     mutable map<int, SparseVector<T> > _matrixs;
 public:
-    inline SparseVector<T> & operator[](int row) const {
+    inline SparseVector<T> & operator[](int row) const
+    {
         return _matrixs[row];
     }
-    inline T & get(int row,int col) const{
+    inline T & get(int row,int col) const
+    {
         return _matrixs[row].getAttrVal(col);
     }
-    inline void set(int row,int col, T & val) const{
+    inline void set(int row,int col, T & val) const
+    {
         return _matrixs[row].setAttrVal(col,val);
     }
 };

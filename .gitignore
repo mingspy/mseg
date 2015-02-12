@@ -44,7 +44,6 @@ Temporary Items
 
 *.da
 
-builder
 core.dic
 testseg
 mseg.tar
@@ -52,3 +51,5 @@ mseg.tar
 *.tar
 *.bk
 *.swo
+seg/builder
+test/test_so.cpp

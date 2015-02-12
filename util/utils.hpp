@@ -225,14 +225,16 @@ inline bool endswith(const string & str, const string & sub)
     return str.compare(str.length() - sub.length(),sub.length(),sub) == 0;
 }
 
-inline bool equal(const string & str1, const string & str2, int start,int end){
+inline bool equal(const string & str1, const string & str2, int start,int end)
+{
     int i = 0;
-    int j = start; 
-    for (;i < str1.length() && j < end && str1[i] == str2[j];i++,j++);
+    int j = start;
+    for (; i < str1.length() && j < end && str1[i] == str2[j]; i++,j++);
     return i == str1.length() && j == end;
 }
 
-inline bool  isPunc(const string &str){
+inline bool  isPunc(const string &str)
+{
     static map<string,bool> puncs;
     static bool inited = false;
     if (!inited) {
@@ -324,15 +326,16 @@ public:
         out<<" elapsed: "<<timer.elapsed()<<"s";
         return out;
     }
-	
+
 };
 
-namespace mingspy{
+namespace mingspy
+{
 struct lookup_tables {
     static const unsigned char whitespace[ 256 ]; // Whitespace table
     static const unsigned char upcase[ 256 ]; // To uppercase conversion table for ASCII characters
-	static const unsigned char estr[ 256 ];   // english and some connect chars
-	static const unsigned char utf8len[ 256 ]; // english and some connect chars
+    static const unsigned char estr[ 256 ];   // english and some connect chars
+    static const unsigned char utf8len[ 256 ]; // english and some connect chars
 };
 const unsigned char lookup_tables::whitespace[ 256 ] = {
 //  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
@@ -415,34 +418,36 @@ const unsigned char lookup_tables::utf8len[ 256 ] = {
 
 inline int isnumber(const string & str, int start,int end)
 {
-	for(int i = start; i < end; i++){
-		if(!isdigit(str[i])) return false;
-	}
-	return true;
+    for(int i = start; i < end; i++) {
+        if(!isdigit(str[i])) return false;
+    }
+    return true;
 }
 inline int isenglish(const string & str, int start,int end)
 {
-	for(int i = start; i < end; i++){
-		if(!isalpha(str[i])) return false;
-	}
-	return true;
+    for(int i = start; i < end; i++) {
+        if(!isalpha(str[i])) return false;
+    }
+    return true;
 }
 
 /*
 * split out English string, http, email,numbers.
-* @return then end of English string. 
+* @return then end of English string.
 */
 inline int utf8_next_estr(const string & str, int start)
 {
-	while(lookup_tables::estr[(unsigned char)(str[start])]){start++;}
-	return start;
+    while(lookup_tables::estr[(unsigned char)(str[start])]) {
+        start++;
+    }
+    return start;
 }
 /*
 * split out English string, http, email,numbers.
-* @return then end of English string. 
+* @return then end of English string.
 */
 inline int utf8_char_len(unsigned char start)
 {
-	return lookup_tables::utf8len[start];
+    return lookup_tables::utf8len[start];
 }
 };

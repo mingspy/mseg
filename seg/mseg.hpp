@@ -33,11 +33,12 @@ namespace mingspy
  * over_ride 如果为false, 并且不存在词性，并且词在词典中存在，则不添加
  *           如果为true,不存在词性，则把词性设置为UDF(未定义)
  */
-void mseg_load_user_dict(Dictionary & dict, const string & file, bool over_ride = false){
+void mseg_load_user_dict(Dictionary & dict, const string & file, bool over_ride = false)
+{
     // 词\t词频
     LineFileReader reader(file);
     string *line = NULL;
-    while(line = reader.getLine()){
+    while(line = reader.getLine()) {
         vector<string> vec;
         split(*line, "\t",vec);
         if(vec.size() == 0) continue;
@@ -56,10 +57,11 @@ void mseg_load_user_dict(Dictionary & dict, const string & file, bool over_ride 
     }
 }
 
-void mseg_split(const IKnife & knif, const string & utf8_str, vector<Chip> & chips){
+void mseg_split(const IKnife & knif, const string & utf8_str, vector<Chip> & chips)
+{
     int split_len = 120;
     int slen = utf8_str.length();
-    if (slen <= split_len){
+    if (slen <= split_len) {
         knif.split(utf8_str, chips);
         return;
     }
@@ -67,14 +69,14 @@ void mseg_split(const IKnife & knif, const string & utf8_str, vector<Chip> & chi
     int puncs_size = 7;
     // sentance split to litte sentance
     int start = 0;
-    int end = split_len; 
-    while(end < slen){
+    int end = split_len;
+    while(end < slen) {
         int nxt = end + utf8_char_len(utf8_str[end]);
-        for(int k = 0; k< puncs_size; k ++){
-            if (equal(puncs[k], utf8_str, end, nxt)){
+        for(int k = 0; k< puncs_size; k ++) {
+            if (equal(puncs[k], utf8_str, end, nxt)) {
                 vector<Chip> result;
                 knif.split(utf8_str.substr(start, nxt - start),result);
-                for(int m = 0; m < result.size(); m++){
+                for(int m = 0; m < result.size(); m++) {
                     result[m]._start += start;
                     result[m]._end += start;
                     chips.push_back(result[m]);
@@ -89,10 +91,10 @@ void mseg_split(const IKnife & knif, const string & utf8_str, vector<Chip> & chi
         else end = nxt;
     }
 
-    if (start < slen){
+    if (start < slen) {
         vector<Chip> result;
         knif.split(utf8_str.substr(start, slen - start),result);
-        for(int m = 0; m < result.size(); m++){
+        for(int m = 0; m < result.size(); m++) {
             result[m]._start += start;
             result[m]._end += start;
             chips.push_back(result[m]);

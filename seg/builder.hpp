@@ -114,9 +114,9 @@ PeopleEntity parseEntity(string & t)
 
     if (ent.word.length() > chinese_len) {
         int wlen = ent.word.length();
-        if (isPunc(ent.word.substr(0,3)) || isPunc(ent.word.substr(0,1)) 
-            || isPunc(ent.word.substr(wlen - 1)) || isPunc(ent.word.substr(wlen -1))){
-                throw parse_error("has punction");
+        if (isPunc(ent.word.substr(0,3)) || isPunc(ent.word.substr(0,1))
+                || isPunc(ent.word.substr(wlen - 1)) || isPunc(ent.word.substr(wlen -1))) {
+            throw parse_error("has punction");
         }
     }
     return  ent;
@@ -168,7 +168,7 @@ class Builder
         dict.addWord(pos);
         start_pos_id = dict.getMaxWordId();
         dict.setMaxWordId(start_word_id);
-        if(inverse){
+        if(inverse) {
             reverse(word.begin(),word.end());
         }
         dict.addWord(word);
@@ -237,14 +237,14 @@ public:
             for(int i = 0; i < vec.size() - 1; i++) {
                 PeopleEntity & ent = vec[i];
                 string next =  vec[i+1].pos;
-                if(vec[i+1].isCompose){
+                if(vec[i+1].isCompose) {
                     next = vec[i+1].sub[0].pos;
                 }
 
                 string pre = vec[i].pos;
                 if (ent.isCompose) {
                     pre = ent.sub[0].pos;
-                    for(int j = 1; j < ent.sub.size(); j++){
+                    for(int j = 1; j < ent.sub.size(); j++) {
                         dict.addAttrFreq(pre,ent.sub[j].pos, 1);
                         pre = ent.sub[j].pos;
                     }
@@ -256,7 +256,10 @@ public:
             cerr<<e<<" \""<<line<<"\""<<endl;
         }
     }
-    void setInverse(bool isInverse){inverse = isInverse;}
+    void setInverse(bool isInverse)
+    {
+        inverse = isInverse;
+    }
 };
 }
 

@@ -195,7 +195,10 @@ public:
     T pop()
     {
         assert (_size > 0);
-        T min = A[0]; A[0] = A[--_size]; heapify(0); return min;
+        T min = A[0];
+        A[0] = A[--_size];
+        heapify(0);
+        return min;
     }
 
     /*
@@ -234,10 +237,11 @@ public:
         return _size;
     }
 
-    void resize(int cap){
-        if( cap > _capability){
+    void resize(int cap)
+    {
+        if( cap > _capability) {
             T * tmp = new T[cap];
-            if(A){
+            if(A) {
                 memcpy(tmp, A, _capability * sizeof(T));
                 delete [] A;
             }

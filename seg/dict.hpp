@@ -49,6 +49,7 @@ public:
     typedef map<int, WordInfo>::const_iterator CWIT;
 protected:
     CharTrie datrie;
+    // TODO change to self manganger type.
     mutable map<int, WordInfo> words_info_table;
     int total_freq;
     string name;
@@ -75,8 +76,8 @@ public:
     }
     inline int addWord(const string & word)
     {
-        int wordid = addWord(word, max_word_id + 1); 
-        if (wordid == max_word_id + 1){
+        int wordid = addWord(word, max_word_id + 1);
+        if (wordid == max_word_id + 1) {
             max_word_id++;
         }
         return wordid;
@@ -180,7 +181,7 @@ public:
     inline FreqInfo * getFreqInfo(int wordid) const
     {
         CWIT it = words_info_table.find(wordid);
-        if(it == words_info_table.end()){
+        if(it == words_info_table.end()) {
             return NULL;
         }
         return it->second.info;
@@ -268,19 +269,21 @@ public:
         return datrie.hasPrefix(prefix.c_str(),0, prefix.length());
     }
 
-	bool hasPrefix(const string & prefix, int start, int end) const
+    bool hasPrefix(const string & prefix, int start, int end) const
     {
         return datrie.hasPrefix(prefix.c_str(),start, end);
     }
-	
-	bool exist(const string & word) const{
-		return datrie.find(word.c_str(),0,word.length());
-	}
-	
-	bool exist(const string & word, int start, int end) const{
-		return datrie.find(word.c_str(),start,end);
-	}
-	
+
+    bool exist(const string & word) const
+    {
+        return datrie.find(word.c_str(),0,word.length());
+    }
+
+    bool exist(const string & word, int start, int end) const
+    {
+        return datrie.find(word.c_str(),start,end);
+    }
+
     inline string getName() const
     {
         return name;

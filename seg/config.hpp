@@ -101,7 +101,8 @@ public:
 
         return default_val;
     }
-    void set(const string & key, const string & val){
+    void set(const string & key, const string & val)
+    {
         _confs[key] = val;
     }
 
@@ -109,7 +110,8 @@ public:
     {
         loadSettings();
     }
-    config(const string & config_path){
+    config(const string & config_path)
+    {
         loadSettingsFromConf(path);
     }
 private:

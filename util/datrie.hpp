@@ -823,18 +823,18 @@ public:
      */
     bool find(const node_type_ * key, data_type_ * data = NULL) const
     {
-		return find(key, 0, length_func_()(key), data);
+        return find(key, 0, length_func_()(key), data);
     }
-	
-	bool find(const node_type_ * key, int start, int end, data_type_ * data = NULL) const
+
+    bool find(const node_type_ * key, int start, int end, data_type_ * data = NULL) const
     {
         // walk through branches
         array_type_ s = _da.getRoot();
-        node_type_ ch; 
-		int p = start;
-        for (;p<=end&&!isSeparate(s); p++) {
+        node_type_ ch;
+        int p = start;
+        for (; p<=end&&!isSeparate(s); p++) {
             ch = key[p];
-            if (p == end){
+            if (p == end) {
                 ch = 0;
             }
             if (!_da.walk(&s, ch)) {
@@ -845,9 +845,9 @@ public:
         // walk through tail
         s = getTailIndex(s);
         int suffix_idx = 0;
-        for (;p<=end; p++) {
+        for (; p<=end; p++) {
             ch = key[p];
-            if (p == end){
+            if (p == end) {
                 ch = 0;
             }
             if (!_tail.walkChar(s, &suffix_idx, ch)) {
@@ -864,8 +864,8 @@ public:
     {
         return hasPrefix(prefix, 0, length_func_()(prefix));
     }
-	
-	bool hasPrefix(const node_type_ * prefix, int start, int end) const
+
+    bool hasPrefix(const node_type_ * prefix, int start, int end) const
     {
         // walk through branches
         array_type_ s = _da.getRoot();
@@ -875,7 +875,7 @@ public:
                 return false;
             }
         }
-		if(p == end) return true;
+        if(p == end) return true;
         // walk through tail
         s = getTailIndex(s);
         int suffix_idx = 0;
