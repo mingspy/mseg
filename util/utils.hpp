@@ -18,14 +18,16 @@
 
 #pragma once
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <cstring>
 #include <vector>
-#include <stdlib.h>
-#include <stdio.h>
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <algorithm>
+#include <map>
 
 #if _MSC_VER > 1000
 #include <io.h>
@@ -37,6 +39,34 @@
 
 using namespace std;
 
+inline bool isDir(const char * path){
+    struct stat info;
+    if (stat(path,&info) == 0)
+        return S_ISDIR(info.st_mode);
+    perror(path);
+    return false;
+}
+
+inline bool isFile(const char * path){
+    struct stat info;
+    if (stat(path,&info) == 0)
+        return S_ISREG(info.st_mode);
+    perror(path);
+    return false;
+}
+
+inline size_t fileSize(const char * path)
+{
+    struct stat info;
+    if (stat(path,&info) == 0)
+        return info.st_size;
+    perror(path);
+    return 0;
+}
+
+inline bool fileExist(const char * path){
+    return access(path,0) == 0;
+}
 
 string changeToInnerPath(const string & path)
 {
@@ -66,7 +96,7 @@ string combinPath(const string & path, const string & path2)
     return r1;
 }
 
-void getFiles( const string & path, vector<string>& files )
+void listFiles( const string & path, vector<string>& files ,bool recursive = false)
 {
     if(path.empty()) {
         return;
@@ -83,10 +113,10 @@ void getFiles( const string & path, vector<string>& files )
     if((hFile = _findfirst(p.assign(pathInner).append("/*").c_str(),&fileinfo)) !=  -1) {
         do {
             if((fileinfo.attrib &  _A_SUBDIR)) {
-                if(strcmp(fileinfo.name,".") != 0  &&  strcmp(fileinfo.name,"..") != 0)
-                    getFiles( p.assign(pathInner).append("/").append(fileinfo.name), files );
+                if(recursive && strcmp(fileinfo.name,".") != 0  &&  strcmp(fileinfo.name,"..") != 0)
+                    listFiles( p.assign(pathInner).append("/").append(fileinfo.name), files );
             } else {
-                files.push_back(p.assign(pathInner).append("/").append(fileinfo.name) );
+                files.push_back(p.assign(pathInner).append("/").append(fileinfo.name));
             }
         } while(_findnext(hFile, &fileinfo)  == 0);
         _findclose(hFile);
@@ -100,29 +130,17 @@ void getFiles( const string & path, vector<string>& files )
     dirent * ent = NULL;
     while((ent = readdir(pDir)) != NULL) {
         if(ent->d_type & DT_DIR) {
-            if(strcmp(ent->d_name,".")==0 || strcmp(ent->d_name,"..")==0)
-                continue;
-            getFiles(pathInner+"/"+ent->d_name, files);
+            if(recursive && strcmp(ent->d_name,".")!=0 && strcmp(ent->d_name,"..")!=0)
+                listFiles(pathInner+"/"+ent->d_name, files);
         } else {
             files.push_back(pathInner+"/"+ent->d_name);
         }
     }
+    closedir(pDir);
 
 #endif
 }
 
-size_t fileSize(const string& filename)
-{
-    ifstream file (filename.c_str(), ios::in|ios::binary|ios::ate);
-    if(!file.good()) {
-        return 0;
-    }
-
-    file.seekg(0, ios::end);
-    long length = file.tellg();
-    file.close();
-    return length;
-}
 
 /*
 * Split the given @src by @separator, the @separator will not appear in result.
@@ -450,4 +468,16 @@ inline int utf8_char_len(unsigned char start)
 {
     return lookup_tables::utf8len[start];
 }
+
+inline int utf8_to_unicode_len(const char * str,int start, int end){
+    int len = 0;
+    for(int i = start; i < end;){
+        int chlen = utf8_char_len(str[i]);
+        len++;
+        i+=chlen;
+        //assert(len < 100000);
+    }
+    return len;
+}
 };
+

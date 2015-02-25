@@ -21,24 +21,17 @@
 #include <cstdlib>
 #include <string>
 #include <map>
-#include "../util/guard.hpp"
+#include "guard.hpp"
 using namespace std;
 
 namespace mingspy
 {
-#if _MSC_VER > 1000  // windows
-static const string DEFAULT_CONF_PATH = "D:/mseg/data/mseg.conf"; // default config path
-static const string DEFAULT_CORE_DICT_PATH = "D:/mseg/data/core.dic"; // default core dictionary path
-static const string DEFAULT_INVS_DICT_PATH = "D:/mseg/data/invs.dic"; // default inverse dictionary path
-static const string DEFAULT_UDF_DICT_PATH = "D:/mseg/data/userDicts/";
 
-#else  // linux
 static const string DEFAULT_CONF_PATH = "/opt/apps/mseg/data/mseg.conf";
 static const string DEFAULT_CORE_DICT_PATH = "/opt/apps/mseg/data/core.dic";
 static const string DEFAULT_INVS_DICT_PATH = "/opt/apps/mseg/data/invs.dic";
 static const string DEFAULT_UDF_DICT_PATH = "/opt/apps/mseg/data/userDicts/";
 
-#endif
 static const string DEFAULT_ISLOAD_INVS = "false";
 
 static const string ENV_MSEG_CONF_PATH = "MSEG_CONF_PATH"; // seg config key in environment
@@ -47,6 +40,7 @@ static const string KEY_CONF_PATH = "CONF_PATH";
 static const string KEY_CORE_PATH = "CORE_DICT_PATH";
 static const string KEY_INVS_PATH = "INVS_DICT_PATH";
 static const string KEY_UDF_DICT_PATH = "UDF_DICT_PATH";
+static const string KEY_ISLOAD_INVS = "IS_LOAD_INVS";
 static ResGuard _confGuard;
 
 /*
@@ -59,7 +53,7 @@ class Config
 {
 public:
 
-    static const Config & instance()
+    static Config & instance()
     {
         ResGuard::Lock lock(_confGuard);
         static Config _theConf;
@@ -101,6 +95,7 @@ public:
 
         return default_val;
     }
+
     void set(const string & key, const string & val)
     {
         _confs[key] = val;
@@ -110,23 +105,16 @@ public:
     {
         loadSettings();
     }
-    config(const string & config_path)
+
+    Config(const string & config_path)
     {
-        loadSettingsFromConf(path);
-    }
-private:
-    void loadSettings()
-    {
-        setDefaultConfigs();
-        char * pconf = getenv(ENV_mseg_CONF_PATH.c_str());
-        if(pconf != NULL) {
-            _confs[KEY_CONF_PATH] = pconf;
-        }
-        loadSettingsFromConf(_confs[KEY_CONF_PATH]);
+        loadSettings();
+        loadSettingsFromConf(config_path);
     }
 
     void loadSettingsFromConf(const string & path)
     {
+        _confs[KEY_CONF_PATH] = path;
         LineFileReader reader(path);
         string * line = NULL;
         while((line = reader.getLine()) != NULL) {
@@ -142,15 +130,20 @@ private:
         }
     }
 
-    void setDefaultConfigs()
+private:
+    void loadSettings()
     {
         _confs[KEY_CONF_PATH] = DEFAULT_CONF_PATH;
         _confs[KEY_CORE_PATH] = DEFAULT_CORE_DICT_PATH;
         _confs[KEY_INVS_PATH] = DEFAULT_INVS_DICT_PATH;
         _confs[KEY_ISLOAD_INVS] = DEFAULT_ISLOAD_INVS;
         _confs[KEY_UDF_DICT_PATH] = DEFAULT_UDF_DICT_PATH;
+        char * pconf = getenv(ENV_MSEG_CONF_PATH.c_str());
+        if(pconf != NULL) {
+            _confs[KEY_CONF_PATH] = pconf;
+        }
     }
-private:
+
     map<string, string> _confs;
 
 };

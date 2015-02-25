@@ -1,10 +1,10 @@
 #INCLUDE=-I/opt/apps_install/jdk-1.6.0_25/include -I/opt/apps_install/jdk-1.6.0_25/include/linux
 INCLUDE=-I../seg/ -I../util/
-#LIBDIR=-L/opt/sogou_seg_with_tagger/lib64
-#LIB=-lencoding -lssplatform -lIQSegmentor -lCoreSegmentor -lunicode-encoding -lsgtagger -lbasic_util -lboost_iostreams
+LIBDIR=-L/data0/home/xiulei/workspace/mseg/seg
+LIB=-lmseg
 #CC=g++ -O3 $(INCLUDE) $(LIB) $(LIBDIR)
 #CC=g++ -DNSHORTPATH -O3 $(INCLUDE) 
-CC=g++ -DBREAKDOWN -O3 $(INCLUDE) 
+CC=g++ -DBREAKDOWN $(INCLUDE) $(LIBDIR) -O3
 #CC=g++ -DDEBUG -g $(INCLUDE)
 
 all:uda useg uepoll uevent

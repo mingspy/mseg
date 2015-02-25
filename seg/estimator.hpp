@@ -4,10 +4,9 @@
 #include "knife.hpp"
 #include "dict.hpp"
 #include <vector>
-#include "../util/sparse.hpp"
-#include "../util/utils.hpp"
+#include "sparse.hpp"
+#include "utils.hpp"
 #include "builder.hpp"
-#include "mseg.hpp"
 
 using namespace std;
 namespace mingspy
@@ -65,7 +64,9 @@ public:
         cout<<"estimating"<<knife.getName()<<endl;
         assert(est_data.size() == est_refer.size());
         vector<vector<string> > splited;
-        vector<Chip> chips;
+        //vector<Chip> chips;
+		const int CHIP_SIZE = 10000;
+		Token chips[CHIP_SIZE];
         double tsize = 0;
         int times = 1024;
         if (est_data.size() > 1000) {
@@ -75,12 +76,11 @@ public:
         for(int j = 0; j< times; j++) {
             splited.clear();
             for(int i = 0; i < est_data.size(); i++) {
-                chips.clear();
                 splited.push_back(vector<string>());
                 tsize += est_data[i].length();
-                knife.split(est_data[i],chips);
+                int len = knife.split(est_data[i],chips, CHIP_SIZE);
                 //mseg_split(knife, est_data[i],chips);
-                substrs(est_data[i],chips,splited[i]);
+                substrs(est_data[i],chips, len,splited[i]);
             }
         }
         double elapsed = timer.elapsed();

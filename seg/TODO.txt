@@ -1,0 +1,7 @@
+
+TODO
+1. 完成时间，金钱，日期，url，人名，地名，组织机构名识别
+1. 放弃使用STL中的vector,map等，使用自定义结构体。
+1. mempool使用固定的stack来加速
+1. 使用mempool来加速。
+

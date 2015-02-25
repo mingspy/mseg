@@ -6,7 +6,7 @@
 #include "estimator.hpp"
 #include "utils.hpp"
 #include "builder.hpp"
-#include "mseg.hpp"
+#include "mseg.cpp"
 
 using namespace std;
 using namespace mingspy;
@@ -33,13 +33,11 @@ string speedstr =  "在所有字符集中，最知名的可能要数被称为ASC
 void testKnife(IKnife & seg)
 {
     cout<<"testing "<<seg.getName()<<" start"<<endl;
-    vector<Chip> vec;
+    Token vec[10000];
     Timer t;
     for(int i = 0; i < DATA_SIZE; i++) {
-        //seg.split(testdata[i],vec);
-        mseg_split(seg,testdata[i],vec);
-        print(testdata[i],vec);
-        vec.clear();
+        int len = seg.split(testdata[i],vec,10000);
+        print(testdata[i],vec, len);
     }
     cout<<"used "<<t.elapsed()<<"s"<<endl;
     cout<<"---------------------------------"<<endl;
@@ -100,9 +98,9 @@ void testNShortPath(const Dictionary * core_dict)
     cout<<"testNShortPath"<<endl;
     Timer t;
     double size = speedstr.length();
+	Token result[10000];
     for(int i = 0; i < 1024; i ++) {
         Graph g;
-        vector<Chip> result;
         genWordGraph(*core_dict, speedstr,g);
         NShortPath npath(g,10);
         npath.calc();
@@ -115,9 +113,9 @@ void testShortPath(const Dictionary * core_dict)
     cout<<"testShortPath"<<endl;
     Timer t;
     double size = speedstr.length();
+	Token result[10000];
     for(int i = 0; i < 1024; i ++) {
         Graph g;
-        vector<Chip> result;
         genWordGraph(*core_dict, speedstr,g);
         ShortPath path(g);
         path.getBestPath(result);
@@ -151,5 +149,7 @@ int main(int argc, char ** argv)
 
     printSegs(&core_dict, & inverse_dict);
     test_metrics(&core_dict, &inverse_dict);
+    Token tks[1000];
+    mseg_full_split("ddd",tks,1000);
 }
 

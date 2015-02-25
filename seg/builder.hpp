@@ -24,7 +24,7 @@
 #include <exception>
 #include <algorithm>
 #include "dict.hpp"
-#include "../util/utils.hpp"
+#include "utils.hpp"
 
 using namespace std;
 

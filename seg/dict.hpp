@@ -22,8 +22,8 @@
 #include <map>
 #include <cstdlib>
 #include <limits.h>
-#include "../util/datrie.hpp"
-#include "../util/sparse.hpp"
+#include "datrie.hpp"
+#include "sparse.hpp"
 
 using namespace std;
 

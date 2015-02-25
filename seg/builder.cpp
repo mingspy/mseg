@@ -26,7 +26,7 @@ int main(int argc, char ** argv)
 {
     mingspy::Builder builder;
     vector<string> files;
-    getFiles("../../data/people/",files);
+    listFiles("../../data/people/",files);
     if(argc > 1) {
         cout<<"building inverse dictionary"<<endl;
         builder.setInverse(true);

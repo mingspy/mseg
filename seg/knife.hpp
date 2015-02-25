@@ -26,31 +26,24 @@
 #include <float.h>
 #include <math.h>
 #include "dict.hpp"
-#include "../util/utils.hpp"
-#include "../util/sparse.hpp"
-#include "../util/minheap.hpp"
+#include "utils.hpp"
+#include "sparse.hpp"
+#include "minheap.hpp"
 
 using namespace std;
 
+struct Token{
+    int start;
+    int end;
+    int pos;
+	Token(int s = 0,int e = 0, int p = 0):start(s),end(e),pos(p){}
+};
 namespace mingspy
 {
 const int TYPE_ESTR = -1000;
 const int TYPE_ATOM = -1;
 const int TYPE_IN_DICT = -2000;
 const double PROB_INFINT = DBL_MAX;
-
-inline int mkId(int start_row, int end_row)
-{
-    return end_row + ((start_row << 16)&0xffff0000);
-}
-inline int getStart(int id)
-{
-    return (id >> 16) & 0xffff;
-}
-inline int getEnd(int id)
-{
-    return id  & 0xffff;
-}
 
 struct Chip {
 public:
@@ -108,18 +101,18 @@ void print(const vector<Chip> & chips)
     cout<<endl;
 }
 
-void print(const string & str, const vector<Chip> & chips)
+void print(const string & str, const Token * chips, int len)
 {
-    for(int i = 0; i< chips.size(); i++) {
-        cout<<"'"<<str.substr(chips[i]._start,chips[i]._end - chips[i]._start)<<"'  ";
+    for(int i = 0; i< len; i++) {
+        cout<<"'"<<str.substr(chips[i].start,chips[i].end - chips[i].start)<<"'  ";
     }
     cout<<endl;
 }
 
-void substrs(const string & str, const vector<Chip> & chips, vector<string> & result)
+void substrs(const string & str, const Token * chips, int len, vector<string> & result)
 {
-    for(int i = 0; i< chips.size(); i++) {
-        result.push_back(str.substr(chips[i]._start,chips[i]._end - chips[i]._start));
+    for(int i = 0; i< len; i++) {
+        result.push_back(str.substr(chips[i].start,chips[i].end - chips[i].start));
     }
 }
 
@@ -371,7 +364,7 @@ public:
         print();
 #endif
     }
-    bool getBestPath(int idx, vector<Chip> & result)
+    int getBestPath(int idx, Token * resultVec)
     {
         int last = _graph.size() - 1;
         MinHeap<Chip> & endpath = _edges[last];
@@ -387,10 +380,12 @@ public:
             idx = cp._end;
             last = cp._start;
         }
+		int retLen;
         for(int i = backoff.size() - 1; i > 0; i--) {
-            result.push_back(Chip(_graph.get(backoff[i]),_graph.get(backoff[i - 1])));
+			resultVec[retLen].start = _graph.get(backoff[i]);
+			resultVec[retLen++].end = _graph.get(backoff[i - 1]);
         }
-        return true;
+        return retLen;
     }
     void print()
     {
@@ -420,7 +415,7 @@ public:
     {
     }
 
-    void getBestPath(vector<Chip> & result)
+    int getBestPath(Token * resultVec)
     {
         // 1. initial weights
         // 2.calc weights:
@@ -450,10 +445,13 @@ public:
             i = points[i].from;
         }
         backoff.push_back(0);
+		int retLen = 0;
         for(int i = backoff.size() - 1; i > 0; i--) {
-            result.push_back(Chip(_graph.get(backoff[i]),_graph.get(backoff[i - 1])));
+			resultVec[retLen].start = _graph.get(backoff[i]);
+			resultVec[retLen++].end = _graph.get(backoff[i - 1]);
         }
         delete [] points;
+		return retLen;
     }
 };
 class Tagger
@@ -543,10 +541,10 @@ public:
     /*
      * split out the str, then save the (start,end) into vector.
      * @param strUtf8 : the input str to split.
-     * @param result : result words
+     * @param resultVec : resultVec words
      */
-    virtual void split(const string &strUtf8, vector<Chip> & result) const = 0;
-    //void setDict(Dictionary * pdict){dict = pdict;}
+    virtual int split(const string &strUtf8, Token * resultVec, int resultVecLen) const = 0;
+    void setDict(Dictionary * pdict){dict = pdict;}
     void setName(const string & name)
     {
         myname = name;
@@ -573,19 +571,22 @@ protected:
 class Flycutter: public IKnife
 {
 public:
-    Flycutter(const Dictionary * refdict)
+    Flycutter(const Dictionary * refdict = NULL)
     {
         dict = refdict;
         setName("--* Lee's fly cutter: a forward max match tokenizer *--");
     }
 
-    virtual void split(const string &strUtf8, vector<Chip> & result) const
+    virtual int split(const string &strUtf8, Token * resultVec, int resultVecLen) const
     {
         int len = strUtf8.length();
+		int retLen = 0;
         for(int i = 0; i < len; ) {
             int estr = utf8_next_estr(strUtf8,i);
             if (estr > i) {
-                result.push_back(Chip(i,estr,TYPE_ESTR));
+                //resultVec.push_back(Chip(i,estr,TYPE_ESTR));
+				resultVec[retLen].start = i;
+				resultVec[retLen++].end = estr;
                 i = estr;
                 continue;
             }
@@ -599,9 +600,13 @@ public:
                     break;
                 }
             }
-            result.push_back(Chip(i,next));
+            //resultVec.push_back(Chip(i,next));
+			resultVec[retLen].start = i;
+			resultVec[retLen++].end = next;
             i = next;
         }
+		assert(retLen <= resultVecLen);
+		return retLen;
     }
 };
 
@@ -619,13 +624,13 @@ public:
 class Renda: public IKnife
 {
 public:
-    Renda(const Dictionary * refdict)
+    Renda(const Dictionary * refdict = NULL)
     {
         dict = refdict;
         setName("--* renda: a backward max match tokenizer *--");
     }
 
-    virtual void split(const string &strUtf8, vector<Chip> & result) const
+    virtual int split(const string &strUtf8, Token * resultVec, int resultVecLen) const
     {
         int len = strUtf8.length();
         vector<int> pos;
@@ -642,6 +647,7 @@ public:
             i = j;
         }
         string str(strUtf8.rbegin(),strUtf8.rend());
+		int retLen = 0;
         for(int i = pos.size() - 1; i > 0; ) {
             int next = i-1;
             for(int j = i-2; j >= 0; j--) {
@@ -651,10 +657,22 @@ public:
                     break;
                 }
             }
-            result.push_back(Chip(len - pos[next], len - pos[i]));
+            //resultVec.push_back(Chip(len - pos[next], len - pos[i]));;
+			resultVec[retLen].start = len - pos[next];
+			resultVec[retLen++].end = len - pos[i];
             i = next;
         }
-        reverse(result.begin(), result.end());
+		
+        //reverse(resultVec.begin(), resultVec.end());
+		assert(retLen <= resultVecLen);
+		Token tmp;
+		int half = retLen / 2;
+		for (int i = 0; i < half; i++){
+			tmp = resultVec[i];
+			resultVec[i] = resultVec[retLen - 1 - i];
+			resultVec[retLen - 1 - i] = tmp;
+		}
+		return retLen;
     }
 };
 
@@ -669,20 +687,23 @@ public:
 class Paoding:public IKnife
 {
 public:
-    Paoding(const Dictionary * refdict)
+    Paoding(const Dictionary * refdict = NULL)
     {
         dict = refdict;
         setName("--* paoding: a full words tokenizer *--");
     }
 
-    virtual void split(const string &strUtf8, vector<Chip> & result) const
+    virtual int split(const string &strUtf8, Token * resultVec, int resultVecLen) const
     {
         int len = strUtf8.length();
         int best = -1;
+		int retLen = 0;
         for(int i = 0; i < len; ) {
             int estr = utf8_next_estr(strUtf8,i);
             if (estr > i) {
-                result.push_back(Chip(i,estr,TYPE_ESTR));
+                //resultVec.push_back(Chip(i,estr,TYPE_ESTR));
+				resultVec[retLen].start = i;
+				resultVec[retLen++].end = estr;
                 i = estr;
                 continue;
             }
@@ -692,52 +713,60 @@ public:
                 j += utf8_char_len(strUtf8[j]);
                 if(dict->exist(strUtf8,i,j)) {
                     best = j;
-                    result.push_back(Chip(i,j));
+                    //resultVec.push_back(Chip(i,j));
+					resultVec[retLen].start = i;
+					resultVec[retLen++].end = j;
                 } else if(!dict->hasPrefix(strUtf8,i,j)) {
                     break;
                 }
             }
             if(best <= i) {
-                result.push_back(Chip(i,next));
+                //resultVec.push_back(Chip(i,next));
+				resultVec[retLen].start = i;
+				resultVec[retLen++].end = next;
             }
             i = next;
         }
+		assert(retLen <= resultVecLen);
+		return retLen;
     }
 };
 
 class Unigram:public IKnife
 {
 public:
-    Unigram(const Dictionary * refdict)
+    Unigram(const Dictionary * refdict = NULL)
     {
         dict = refdict;
         setName("--* unigram: a unitary gram tokenizer *--");
     }
 #ifdef BREAKDOWN
-    void split(const string &strUtf8, vector<Chip> & chips) const
+    virtual int split(const string &strUtf8, Token * resultVec, int resultVecLen) const
     {
-        int split_len = 120;
+        int split_len = 60;
         int slen = strUtf8.length();
+		int retLen = 0;
         Graph graph;
         if (slen <= split_len) {
-            dosplit(strUtf8, chips, graph);
-            return;
+            retLen = dosplit(strUtf8, resultVec, graph);
+			assert(retLen <= resultVecLen);
+            return retLen;
         }
         static string puncs[] = {"。",",","，","!"," ","\n","！"};
         int puncs_size = 7;
         // sentance split to litte sentance
         int start = 0;
         int end = split_len;
+		Token part[1000];
         while(end < slen) {
             int nxt = end + utf8_char_len(strUtf8[end]);
             for(int k = 0; k< puncs_size; k ++) {
                 if (equal(puncs[k], strUtf8, end, nxt)) {
-                    vector<Chip> result;
-                    dosplit(strUtf8.substr(start, nxt - start),result,graph);
-                    for(int m = 0; m < result.size(); m++) {
-                        result[m]._start += start;
-                        result[m]._end += start;
-                        chips.push_back(result[m]);
+                    //vector<Chip> resultVec;
+                    int partLen = dosplit(strUtf8.substr(start, nxt - start),part,graph);
+                    for(int m = 0; m < partLen; m++) {
+                        resultVec[retLen].start = part[m].start + start;
+						resultVec[retLen++].end = part[m].end + start;
                     }
                     start = nxt;
                     end = nxt + split_len;
@@ -750,45 +779,37 @@ public:
         }
 
         if (start < slen) {
-            vector<Chip> result;
-            dosplit(strUtf8.substr(start, slen - start),result, graph);
-            for(int m = 0; m < result.size(); m++) {
-                result[m]._start += start;
-                result[m]._end += start;
-                chips.push_back(result[m]);
+            int partLen = dosplit(strUtf8.substr(start, slen - start),part, graph);
+            for(int m = 0; m < partLen; m++) {
+                resultVec[retLen].start = part[m].start + start;
+				resultVec[retLen++].end = part[m].end + start;
             }
         }
+		assert(retLen <= resultVecLen);
+		return retLen;
     }
-private:
-    void dosplit(const string &strUtf8, vector<Chip> & result, Graph & graph) const
-    {
-        genWordGraph(*dict, strUtf8, graph);
-        graph.calcLogProb(dict->getWordFreq(WORDS_FREQ_TOTAL));
-#ifdef NSHORTPATH
-        NShortPath npath(graph, 6);
-        npath.calc();
-        npath.getBestPath(0,result);
+
 #else
-        ShortPath shortPath(graph);
-        shortPath.getBestPath(result);
-#endif
-    }
-#else
-    void split(const string &strUtf8, vector<Chip> & result) const
+    virtual int split(const string &strUtf8, Token * resultVec, int resultVecLen) const
     {
         Graph graph;
+		return dosplit(strUtf8, resultVec, graph);
+    }
+#endif
+private:
+    inline int dosplit(const string &strUtf8, Token * resultVec, Graph & graph) const
+    {
         genWordGraph(*dict, strUtf8, graph);
         graph.calcLogProb(dict->getWordFreq(WORDS_FREQ_TOTAL));
 #ifdef NSHORTPATH
         NShortPath npath(graph, 6);
         npath.calc();
-        npath.getBestPath(0,result);
+        return npath.getBestPath(0,resultVec);
 #else
         ShortPath shortPath(graph);
-        shortPath.getBestPath(result);
+        return shortPath.getBestPath(resultVec);
 #endif
     }
-#endif
 };
 
 }
