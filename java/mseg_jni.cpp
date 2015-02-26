@@ -8,22 +8,29 @@ using namespace std;
 static jobject toJavaTokenList(JNIEnv * env, const char * utf8str, 
         const Token * result, int len, bool addNature = false)
 {
-    jclass list_cls = env->FindClass("Ljava/util/ArrayList;");//»ñµÃArrayListÀàÒıÓÃ
-    jmethodID list_costruct_id = env->GetMethodID(list_cls , "<init>","()V"); //»ñµÃµÃ¹¹Ôìº¯ÊıId
+    jclass list_cls = env->FindClass("Ljava/util/ArrayList;");//è·å¾—ArrayListç±»å¼•ç”¨
+    jmethodID list_costruct_id = env->GetMethodID(list_cls , "<init>","()V"); //è·å¾—å¾—æ„é€ å‡½æ•°Id
     jmethodID list_add  = env->GetMethodID(list_cls,"add","(Ljava/lang/Object;)Z");
     jobject list_obj = env->NewObject(list_cls , list_costruct_id);
     jclass token_cls = env->FindClass("Lcom/mingspy/mseg/Token;");
-    jmethodID token_costruct_id = env->GetMethodID(token_cls , "<init>", "(II)V");
+    jmethodID token_costruct_id = env->GetMethodID(token_cls , "<init>", 
+            "(IILjava/lang/String;Ljava/lang/String;)V");
     jfieldID token_nature_id = env->GetFieldID(token_cls,"nature","Ljava/lang/String;");
     int unicode_start = 0;
     int unicode_end = 0; 
+    char word[256];
     for(int i = 0 ; i < len; i++) {
+        int len = result[i].end - result[i].start;
+		if(len > 255) len = 255;
+        strncpy(word,utf8str+result[i].start, len);
+        word[len] = 0;
         unicode_end = utf8_to_unicode_len(utf8str,result[i].start,result[i].end) + unicode_start;
-        jobject t_obj = env->NewObject(token_cls , token_costruct_id , unicode_start,unicode_end);
+        jobject t_obj = env->NewObject(token_cls , token_costruct_id , unicode_start,
+                unicode_end,env->NewStringUTF(word),NULL);
         unicode_start = unicode_end;
         if(addNature) {
             const char * nature = mseg_get_pos(result[i].pos);
-            env->SetObjectField(t_obj, token_nature_id, env->NewString((const jchar *)nature, strlen(nature)));
+            env->SetObjectField(t_obj, token_nature_id, env->NewStringUTF(nature));
         }
         env->CallBooleanMethod(list_obj , list_add , t_obj);
     }
@@ -149,9 +156,8 @@ jobject JNI_ConfigSet
     env->ReleaseStringUTFChars(jkey, key);
     env->ReleaseStringUTFChars(jval, val);
     //return 0;
-    // TODO:¿¿jni¿¿int,bool¿¿¿¿¿MethodNotFound¿¿¿
-    // ¿¿¿¿jobject¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿
-    // ¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿
+    // TODO:ç›®å‰jniå‡½æ•°è¿”å›int,boolæ—¶æŠ›å¼‚å¸¸MethodNotFound
+    // æ‰€ä»¥ç”¨jobjectä»£æ›¿
     cerr<<"cpp config set key success" <<endl;
     Token result[1];
     return toJavaTokenList(env,"success",result, 1);

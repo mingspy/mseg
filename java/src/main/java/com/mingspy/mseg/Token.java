@@ -2,22 +2,51 @@ package com.mingspy.mseg;
 
 public class Token
 {
-    public int start;
-    public int end;
-    public String nature;
-    public String word;
-    //public int attr;
+    private int start;
+    private int end;
+    private String word;
+    private String nature;
+    
     public Token(int start, int end)
     {
-        this.start = start;
-        this.end = end;
+        this(start,end,null,null);
     }
-    public Token(int start, int end, String nature)
+    public Token(int start, int end, String word, String nature)
     {
         this.start = start;
         this.end = end;
+        this.word = word;
         this.nature = nature;
     }
+    
+    public int getStart() {
+		return start;
+	}
+	public void setStart(int start) {
+		this.start = start;
+	}
+	public int getEnd() {
+		return end;
+	}
+	public void setEnd(int end) {
+		this.end = end;
+	}
+	public String getWord() {
+		return word;
+	}
+	public void setWord(String word) {
+		this.word = word;
+	}
+	public String getNature() {
+		if(nature != null){
+			return nature;
+		}
+		return "word";
+	}
+	public void setNature(String nature) {
+		this.nature = nature;
+	}
+	
     @Override
     public String toString()
     {
@@ -27,6 +56,7 @@ public class Token
         builder.append(",");
         builder.append(end);
         if(word != null) {
+        	builder.append(",");
             builder.append(word);
         }
         if(nature != null) {
@@ -36,5 +66,8 @@ public class Token
         builder.append(")");
         return builder.toString();
     }
+	public int length() {
+		return end - start;
+	}
 
 }
