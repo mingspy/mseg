@@ -79,12 +79,28 @@ void mseg_config_set(const char * key, const char * val){
 
 void mseg_init(){
     Config & config = Config::instance();
-    core_dict.open(config.getStr(KEY_CORE_PATH));
+    string dictRoot = config.getStr(KEY_DICT_ROOT);
+    if (!fileExist(dictRoot.c_str())){
+        throw "dictionary dir of mseg not accessable.";
+    }
+
+    string core_dict_path = combinPath(dictRoot,config.getStr(KEY_CORE_NAME));
+    cout<<"core dict path is:"<<core_dict_path<<endl;
+    if (!fileExist(core_dict_path.c_str())){
+        throw "core dict not accessable";
+    }
+
+    core_dict.open(core_dict_path);
     if (config.getBool(KEY_ISLOAD_INVS)){
-        inverse_dict.open(config.getStr(KEY_INVS_PATH));
+        string invs_dict_path = combinPath(dictRoot,config.getStr(KEY_INVS_NAME));
+        cout<<"inverse dict path is:"<<invs_dict_path<<endl;
+        if (!fileExist(invs_dict_path.c_str())){
+            throw "inverse dict not accessable";
+        }
+        inverse_dict.open(invs_dict_path);
 	}
 
-    string udfpath = config.getStr(KEY_UDF_DICT_PATH);
+    string udfpath = config.getStr(KEY_USER_DICT_DIR);
     vector<string> files;
     if (fileExist(udfpath.c_str())){
         if(isFile(udfpath.c_str())){

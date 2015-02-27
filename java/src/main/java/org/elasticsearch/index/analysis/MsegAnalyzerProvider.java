@@ -1,5 +1,8 @@
 package org.elasticsearch.index.analysis;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.assistedinject.Assisted;
 import org.elasticsearch.common.settings.Settings;
@@ -8,6 +11,7 @@ import org.elasticsearch.index.Index;
 import org.elasticsearch.index.settings.IndexSettings;
 
 import com.mingspy.lucene.MsegAnalyzer;
+import com.mingspy.mseg.MsegJNI;
 
 public class MsegAnalyzerProvider extends AbstractIndexAnalyzerProvider<MsegAnalyzer> {
     private final MsegAnalyzer analyzer;
@@ -15,9 +19,8 @@ public class MsegAnalyzerProvider extends AbstractIndexAnalyzerProvider<MsegAnal
     @Inject
     public MsegAnalyzerProvider(Index index, @IndexSettings Settings indexSettings, Environment env, @Assisted String name, @Assisted Settings settings) {
         super(index, indexSettings, name, settings);
-        //Dictionary.initial(new Configuration(env));
-        //analyzer=new MsegAnalyzer(indexSettings, settings, env);
-        analyzer=new MsegAnalyzer();
+        
+        analyzer=new MsegAnalyzer(env,settings);
     }
 
     public MsegAnalyzer get() {

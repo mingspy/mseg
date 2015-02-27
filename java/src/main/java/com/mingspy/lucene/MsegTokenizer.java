@@ -2,8 +2,10 @@ package com.mingspy.lucene;
 
 import java.io.IOException;
 import java.io.Reader;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.lucene.analysis.Tokenizer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
@@ -20,6 +22,14 @@ public class MsegTokenizer extends Tokenizer {
 	public final static int SMART = 0x04;
 	public final static int TAGGING = 0x08;
 	public final static int FULL = 0x10;
+	private static final Map<String,Integer> splitMethods = new HashMap<String,Integer>();
+	static{
+		splitMethods.put("FORWARD",FORWARD);
+		splitMethods.put("BACKWARD",BACKWARD);
+		splitMethods.put("SMART",SMART);
+		splitMethods.put("TAGGING",TAGGING);
+		splitMethods.put("FULL",FULL);
+	}
 	// 词元文本属性
 	private final CharTermAttribute termAtt;
 	// 词元位移属性
@@ -106,8 +116,9 @@ public class MsegTokenizer extends Tokenizer {
 		_tokens = null;
 	}
 
-	public void setSplitMethod(int splitMethod) {
-		this.splitMethod = splitMethod;
+	public void setSplitMethod(String splitMethod) {
+		int intMethod = splitMethods.getOrDefault(splitMethod.toUpperCase(), FORWARD);
+		this.splitMethod = intMethod;
 	}
 
 }

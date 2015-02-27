@@ -53,5 +53,4 @@ mseg.tar
 *.swo
 seg/builder
 test/test_so.cpp
-*.so
 *.class

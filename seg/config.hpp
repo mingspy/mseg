@@ -27,20 +27,22 @@ using namespace std;
 namespace mingspy
 {
 
-static const string DEFAULT_CONF_PATH = "/opt/apps/mseg/data/mseg.conf";
-static const string DEFAULT_CORE_DICT_PATH = "/opt/apps/mseg/data/core.dic";
-static const string DEFAULT_INVS_DICT_PATH = "/opt/apps/mseg/data/invs.dic";
-static const string DEFAULT_UDF_DICT_PATH = "/opt/apps/mseg/data/userDicts/";
+static const string DEFAULT_CONF_PATH = "/data0/xiulei/mseg/mseg.conf";
+static const string DEFAULT_DICT_ROOT = "/data0/xiulei/mseg/";
+static const string DEFAULT_CORE_DICT_NAME = "core.dic";
+static const string DEFAULT_INVS_DICT_NAME = "inverse.dic";
+static const string DEFAULT_USER_DICT_DIR = "mydicts/";
 
-static const string DEFAULT_ISLOAD_INVS = "false";
+static const string DEFAULT_ISLOAD_INVS = "true";
 
 static const string ENV_MSEG_CONF_PATH = "MSEG_CONF_PATH"; // seg config key in environment
 // keys in config file :
 static const string KEY_CONF_PATH = "CONF_PATH";
-static const string KEY_CORE_PATH = "CORE_DICT_PATH";
-static const string KEY_INVS_PATH = "INVS_DICT_PATH";
-static const string KEY_UDF_DICT_PATH = "UDF_DICT_PATH";
+static const string KEY_CORE_NAME = "CORE_DICT_NAME";
+static const string KEY_INVS_NAME = "INVS_DICT_NAME";
+static const string KEY_USER_DICT_DIR = "USER_DICT_DIR";
 static const string KEY_ISLOAD_INVS = "IS_LOAD_INVS";
+static const string KEY_DICT_ROOT = "DICT_ROOT";
 static ResGuard _confGuard;
 
 /*
@@ -134,10 +136,11 @@ private:
     void loadSettings()
     {
         _confs[KEY_CONF_PATH] = DEFAULT_CONF_PATH;
-        _confs[KEY_CORE_PATH] = DEFAULT_CORE_DICT_PATH;
-        _confs[KEY_INVS_PATH] = DEFAULT_INVS_DICT_PATH;
+        _confs[KEY_DICT_ROOT] = DEFAULT_DICT_ROOT;
+        _confs[KEY_CORE_NAME] = DEFAULT_CORE_DICT_NAME;
+        _confs[KEY_INVS_NAME] = DEFAULT_INVS_DICT_NAME;
         _confs[KEY_ISLOAD_INVS] = DEFAULT_ISLOAD_INVS;
-        _confs[KEY_UDF_DICT_PATH] = DEFAULT_UDF_DICT_PATH;
+        _confs[KEY_USER_DICT_DIR] = DEFAULT_USER_DICT_DIR;
         char * pconf = getenv(ENV_MSEG_CONF_PATH.c_str());
         if(pconf != NULL) {
             _confs[KEY_CONF_PATH] = pconf;

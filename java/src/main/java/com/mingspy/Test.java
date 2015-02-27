@@ -1,14 +1,16 @@
 package com.mingspy;
 import java.io.*;
+
 import com.mingspy.mseg.*;
+
 import java.util.List;
 
 public class Test {  
-    public static void main(String[] args) throws InterruptedException {  
+    public static void main(String[] args) throws InterruptedException, FileNotFoundException {  
         System.err.println("-------------configing-----------------");
-        MsegJNI.ConfigSet("CORE_DICT_PATH","/data0/home/xiulei/workspace/mseg/test/core.dic");
+        MsegJNI.setDictRoot("/data0/home/xiulei/workspace/mseg/test/");
         System.err.println("-------------initing mseg-----------------");
-        MsegJNI.MsegInit();
+        MsegJNI.init();
         System.err.println("-------------call seg-----------------");
         List<Token> ls = MsegJNI.ForwardSplit("他说的确实在理123 abc.com");
         for (Token t : ls){

@@ -223,7 +223,6 @@ JNI_OnLoad(JavaVM *vm, void *reserved)
     }
 
     int len = sizeof(s_methods) / sizeof(s_methods[0]);
-    cerr<<"JNI Methods length ="<<len<<endl;
     if (env->RegisterNatives(cls, s_methods, len) < 0) {
         perror( "cpp: jni registerNatives for MsegJNI faild");
         return JNI_ERR;

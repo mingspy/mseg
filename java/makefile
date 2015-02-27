@@ -4,7 +4,7 @@ INCLUDE=-I/usr/java/jdk1.7.0_51/include -I/usr/java/jdk1.7.0_51/include/linux -I
 #CC=g++ -O3 $(INCLUDE) $(LIB) $(LIBDIR)
 CC=g++ -O3 $(INCLUDE)
 
-libmsegjni.so:mseg_jni.cpp
+libmsegjni.so:mseg_jni.cpp ../seg/knife.hpp ../seg/mseg.cpp
 	$(CC) -fPIC -shared  mseg_jni.cpp -o libmsegjni.so 
 
 clean:
