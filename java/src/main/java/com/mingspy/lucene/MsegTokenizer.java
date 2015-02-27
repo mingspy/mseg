@@ -22,13 +22,13 @@ public class MsegTokenizer extends Tokenizer {
 	public final static int SMART = 0x04;
 	public final static int TAGGING = 0x08;
 	public final static int FULL = 0x10;
-	private static final Map<String,Integer> splitMethods = new HashMap<String,Integer>();
-	static{
-		splitMethods.put("FORWARD",FORWARD);
-		splitMethods.put("BACKWARD",BACKWARD);
-		splitMethods.put("SMART",SMART);
-		splitMethods.put("TAGGING",TAGGING);
-		splitMethods.put("FULL",FULL);
+	private static final Map<String, Integer> splitMethods = new HashMap<String, Integer>();
+	static {
+		splitMethods.put("FORWARD", FORWARD);
+		splitMethods.put("BACKWARD", BACKWARD);
+		splitMethods.put("SMART", SMART);
+		splitMethods.put("TAGGING", TAGGING);
+		splitMethods.put("FULL", FULL);
 	}
 	// 词元文本属性
 	private final CharTermAttribute termAtt;
@@ -90,20 +90,21 @@ public class MsegTokenizer extends Tokenizer {
 		if (_tokens == null) {
 			splitText(input);
 		}
-		
+
 		if (_tokens != null && _tokens.hasNext()) {
 			token = _tokens.next();
 			posIncrAtt.setPositionIncrement(1);
-			//将Lexeme转成Attributes
-			//设置词元文本
+			// 将Lexeme转成Attributes
+			// 设置词元文本
 			termAtt.append(token.getWord());
-			//设置词元长度
+			// 设置词元长度
 			termAtt.setLength(token.length());
-			//设置词元位移
-            offsetAtt.setOffset(correctOffset(token.getStart()), correctOffset(token.getEnd()));
-			//记录词元分类
-			typeAtt.setType(token.getNature());			
-			//返会true告知还有下个词元
+			// 设置词元位移
+			offsetAtt.setOffset(correctOffset(token.getStart()),
+					correctOffset(token.getEnd()));
+			// 记录词元分类
+			typeAtt.setType(token.getNature());
+			// 返会true告知还有下个词元
 			return true;
 		}
 
@@ -117,7 +118,12 @@ public class MsegTokenizer extends Tokenizer {
 	}
 
 	public void setSplitMethod(String splitMethod) {
-		int intMethod = splitMethods.getOrDefault(splitMethod.toUpperCase(), FORWARD);
+		int intMethod = FORWARD;
+		Integer method = splitMethods.get(splitMethod.toUpperCase());
+		if (method != null) {
+			intMethod = method;
+		}
+
 		this.splitMethod = intMethod;
 	}
 
