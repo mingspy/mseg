@@ -69,11 +69,11 @@ public class MsegTokenizer extends Tokenizer {
 				case TAGGING:
 					_splitResult = MsegJNI.Tagging(str);
 					break;
-				case FULL:
-					_splitResult = MsegJNI.FullSplit(str);
+				case FORWARD:
+					_splitResult = MsegJNI.ForwardSplit(str);
 					break;
 				default:
-					_splitResult = MsegJNI.ForwardSplit(str);
+					_splitResult = MsegJNI.FullSplit(str);
 				}
 			}
 			_tokens = _splitResult != null ? _splitResult.iterator() : null;
@@ -118,7 +118,7 @@ public class MsegTokenizer extends Tokenizer {
 	}
 
 	public void setSplitMethod(String splitMethod) {
-		int intMethod = FORWARD;
+		int intMethod = FULL;
 		Integer method = splitMethods.get(splitMethod.toUpperCase());
 		if (method != null) {
 			intMethod = method;

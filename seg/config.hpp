@@ -33,7 +33,7 @@ static const string DEFAULT_CORE_DICT_NAME = "core.dic";
 static const string DEFAULT_INVS_DICT_NAME = "inverse.dic";
 static const string DEFAULT_USER_DICT_DIR = "mydicts/";
 
-static const string DEFAULT_ISLOAD_INVS = "true";
+static const string DEFAULT_ISLOAD_INVS = "false";
 
 static const string ENV_MSEG_CONF_PATH = "MSEG_CONF_PATH"; // seg config key in environment
 // keys in config file :
