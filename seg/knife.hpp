@@ -32,12 +32,6 @@
 
 using namespace std;
 
-struct Token{
-    int start;
-    int end;
-    int pos;
-	Token(int s = 0,int e = 0, int p = 0):start(s),end(e),pos(p){}
-};
 namespace mingspy
 {
 const int TYPE_ESTR = -1000;
@@ -45,40 +39,40 @@ const int TYPE_ATOM = -1;
 const int TYPE_IN_DICT = -2000;
 const double PROB_INFINT = DBL_MAX;
 
-struct Chip {
+struct Token {
 public:
-    int _start; // start index.
-    int _end; // len
-    int _attr; // type of this Chip or attribute index.
-    double _val;
+    int start; // start index.
+    int end; // len
+    int pos; // type of this Token or attribute index.
+    double val;
     //wstring _word; // maybe empty
-    Chip(int start = 0, int end = 0, int attr = -1, double score = 0):_start(start),_end(end),_attr(attr),_val(score)
+    Token(int start_off = 0, int end_off = 0, int attr = -1, double score = 0):start(start_off),end(end_off),pos(attr),val(score)
     {
     }
 
-    friend ostream & operator<<(ostream & out, const Chip & t)
+    friend ostream & operator<<(ostream & out, const Token & t)
     {
-        out<<"("<<t._start<<","<<t._end<<","<<t._attr<<","<<t._val<<")";
+        out<<"("<<t.start<<","<<t.end<<","<<t.pos<<","<<t.val<<")";
         return out;
     }
 
-    inline bool operator==(const Chip& other) const
+    inline bool operator==(const Token& other) const
     {
-        return _start == other._start && _end == other._end;
+        return start == other.start && end == other.end;
     }
 
-    inline bool operator!=(const Chip& other) const
+    inline bool operator!=(const Token& other) const
     {
-        return _start != other._start || _end != other._end;
+        return start != other.start || end != other.end;
     }
 
-    inline bool operator<(const Chip& other) const
+    inline bool operator<(const Token& other) const
     {
-        return _val < other._val;
+        return val < other.val;
     }
 };
 
-bool diff(const vector<Chip> & v1, const vector<Chip> & v2)
+bool diff(const vector<Token> & v1, const vector<Token> & v2)
 {
     if (v1.size() != v2.size()) return true;
     int vsize = v1.size();
@@ -87,37 +81,40 @@ bool diff(const vector<Chip> & v1, const vector<Chip> & v2)
     }
     return false;
 }
-bool chip_compare_asc(const Chip & o1, const Chip & o2)
+
+bool token_compare_dsc(const Token & o1, const Token & o2)
 {
-    double d = o1._val - o2._val;
+    double d = o1.val - o2.val;
     if (d <= -0.00000001) return true;
     return false;
 }
-void print(const vector<Chip> & chips)
+
+void print(const vector<Token> & tokenArr)
 {
-    for(int i = 0; i< chips.size(); i++) {
-        cout<<chips[i];
+    for(int i = 0; i< tokenArr.size(); i++) {
+        cout<<tokenArr[i];
     }
     cout<<endl;
 }
 
-void print(const string & str, const Token * chips, int len)
+void print(const string & str, const Token * tokenArr, int len)
 {
     for(int i = 0; i< len; i++) {
-        cout<<"'"<<str.substr(chips[i].start,chips[i].end - chips[i].start)<<"'  ";
+        cout<<str.substr(tokenArr[i].start,tokenArr[i].end - tokenArr[i].start)<<"/"<<tokenArr[i].pos<<" ";
     }
     cout<<endl;
 }
 
-void substrs(const string & str, const Token * chips, int len, vector<string> & result)
+void substrs(const string & str, const Token * tokenArr, int len, vector<string> & result)
 {
     for(int i = 0; i< len; i++) {
-        result.push_back(str.substr(chips[i].start,chips[i].end - chips[i].start));
+        result.push_back(str.substr(tokenArr[i].start,tokenArr[i].end - tokenArr[i].start));
     }
 }
 
 
-double viterbi( const Dictionary & dict, const vector<SparseVector<int> *> & Observs, vector<int> & bestPos)
+double viterbi( const Dictionary & dict, const vector<const SparseVector<int> *> & Observs, 
+        Token * tokenArr, int arrLen)
 {
     int T = Observs.size();
     Matrix<double> delta;
@@ -175,16 +172,21 @@ double viterbi( const Dictionary & dict, const vector<SparseVector<int> *> & Obs
         }
     }
 
+
     // Get best path.
-    bestPos.push_back(index);
+    //bestPos.push_back(index);
+    tokenArr[T-1].pos = index;
     for ( int t = T - 1; t > 0; t-- ) {
-        bestPos.push_back(psi[t].getVal(bestPos[T- 1 - t]));
+        //bestPos.push_back(psi[t].getVal(bestPos[T- 1 - t]));
+        index = psi[t].getVal(index);
+        tokenArr[t-1].pos = index;
     }
 
-    reverse(bestPos.begin(),bestPos.end());
+    //reverse(bestPos.begin(),bestPos.end());
     // Get best pose.
-    for ( int i = 0; i < T; i++ ) {
-        bestPos[i] = Observs[i]->getId(bestPos[i]);
+    for ( int t = 0; t < T; t++ ) {
+        //bestPos[i] = Observs[i]->getId(bestPos[i]);
+        tokenArr[t].pos = Observs[t]->getId(tokenArr[t].pos);
     }
     assert(minProb >=0);
     return minProb;
@@ -328,12 +330,12 @@ void genWordGraph(const Dictionary & dict,const string &strUtf8, Graph & graph)
 class NShortPath
 {
     Graph & _graph;
-    MinHeap<Chip> *  _edges;
+    MinHeap<Token> *  _edges;
     bool sorted;
 public:
     NShortPath(Graph & graph, int n):_graph(graph),sorted(false)
     {
-        _edges = new MinHeap<Chip>[_graph.size()];
+        _edges = new MinHeap<Token>[_graph.size()];
         for(int i = 0; i < graph.size(); i++) {
             _edges[i].resize(n);
         }
@@ -346,17 +348,17 @@ public:
     {
         // 1. initial weights
         // 2.calc weights:
-        _edges[0].add_if_small(Chip(-1,-1,0));
+        _edges[0].add_if_small(Token(-1,-1,0));
         int rsize = _graph.size() - 1;// 最后一个为结束节点，不参与计算
         for (int i = 0; i < rsize; i++) {
             // 当前节点的路径
-            MinHeap<Chip> & paths = _edges[i];
+            MinHeap<Token> & paths = _edges[i];
             // 当前节点可到达的节点集合
             vector<Vetex> & nexts =  _graph.getVetexs(i);
             for (int j = 0; j < paths.size(); j++) {
                 for(int k = 0; k < nexts.size(); k++) {
-                    double weight = paths[j]._val + nexts[k].val;
-                    _edges[nexts[k].id].add_if_small(Chip(i,j,0,weight));
+                    double weight = paths[j].val + nexts[k].val;
+                    _edges[nexts[k].id].add_if_small(Token(i,j,0,weight));
                 }
             }
         }
@@ -367,7 +369,7 @@ public:
     int getBestPath(int idx, Token * resultVec)
     {
         int last = _graph.size() - 1;
-        MinHeap<Chip> & endpath = _edges[last];
+        MinHeap<Token> & endpath = _edges[last];
         if (idx >= endpath.size()) return false;
         if (!sorted) {
             endpath.sort();
@@ -376,9 +378,9 @@ public:
         vector<int> backoff;
         while(last != -1) {
             backoff.push_back(last);
-            Chip & cp = _edges[last][idx];
-            idx = cp._end;
-            last = cp._start;
+            Token & cp = _edges[last][idx];
+            idx = cp.end;
+            last = cp.start;
         }
 		int retLen;
         for(int i = backoff.size() - 1; i > 0; i--) {
@@ -392,7 +394,7 @@ public:
         cout<<"-----------------edges--------------------"<<endl;
         for (int i = 0; i < _graph.size(); i ++) {
             cout<<i<<":";
-            MinHeap<Chip> & heap = _edges[i];
+            MinHeap<Token> & heap = _edges[i];
             for(int j = 0; j < heap.size(); j++) {
                 cout<<heap[j]<<" ";
             }
@@ -454,82 +456,161 @@ public:
 		return retLen;
     }
 };
+
 class Tagger
 {
-    const Dictionary &_dict;
-    mutable SparseVector<int> _possible_info;
-    mutable bool _info_gened;
-    vector<string> _possible_natures;
-public:
-    SparseVector<int> *  genPossibleInfo() const
+protected:
+    const Dictionary * _dict;
+    mutable Dictionary::FreqInfo _possible_info;
+    mutable bool _is_possible_gened;
+    Dictionary::FreqInfo * getPossibleInfo() const
     {
-        if(!_info_gened) {
-            _possible_info.clear();
-            vector<int> freqs;
-            double sum = 0;
-            for(int i = 0; i < _possible_natures.size(); i++) {
-                int freq = _dict.getWordFreq(_possible_natures[i]) + 1;
-                sum += freq;
-                freqs.push_back(freq);
-            }
-
-            for(int i = 0; i < freqs.size(); i++) {
-                _possible_info.setAttrVal(_dict.getWordId(_possible_natures[i]), freqs[i] * 1000/sum);
-            }
-            _info_gened = true;
+        if (!_is_possible_gened){
+            genPossibleInfo();
+            _is_possible_gened = true;
         }
         return &_possible_info;
     }
-public:
-    explicit Tagger(const Dictionary & dict):_dict(dict),_info_gened(false)
+
+    virtual void genPossibleInfo() const
     {
+        vector<string> _possible_natures;
         _possible_natures.push_back("n");
         _possible_natures.push_back("a");
         _possible_natures.push_back("v");
         _possible_natures.push_back("c");
         _possible_natures.push_back("u");
         _possible_natures.push_back("p");
+        _possible_info.clear();
+        vector<int> freqs;
+        double sum = 0;
+        for(int i = 0; i < _possible_natures.size(); i++) {
+            int freq = _dict->getWordFreq(_possible_natures[i]) + 1;
+            sum += freq;
+            freqs.push_back(freq);
+        }
+
+        for(int i = 0; i < freqs.size(); i++) {
+            _possible_info.setAttrVal(_dict->getWordId(_possible_natures[i]), freqs[i] * 1000/sum);
+        }
     }
-    inline bool tagging(const string &utf8Str, vector<Chip>& chips) const
+public:
+    explicit Tagger(const Dictionary * dict = NULL):_dict(dict),_is_possible_gened(false)
     {
-        vector<SparseVector<int> *> infos;
-        for( int i = 0; i < chips.size(); i ++) {
-            Dictionary::FreqInfo * info = _dict.getFreqInfo(utf8Str,chips[i]._start, chips[i]._end);
+    }
+    void setDict(const Dictionary * dict = NULL){
+        _dict = dict;
+    }
+    bool tagging(const string &utf8Str, Token * tokenArr, int arrLen) const
+    {
+        vector<const Dictionary::FreqInfo *> infos;
+        for( int i = 0; i < arrLen; i ++) {
+            const Dictionary::FreqInfo * info = _dict->getFreqInfo(utf8Str,tokenArr[i].start, tokenArr[i].end);
             if(info == NULL) {
-                info = genPossibleInfo();
+                info = getPossibleInfo();
             }
             infos.push_back(info);
         }
-        vector<int> bests;
-        viterbi(_dict, infos, bests);
-        for(int i = 0; i < bests.size(); i ++) {
-            chips[i]._attr = bests[i];
-        }
+        //vector<int> bests;
+        viterbi(*_dict, infos, tokenArr, arrLen);
         return true;
     }
 
-    inline bool tagging(const vector<string> & words, vector<string>& tags) const
+    bool tagging(const vector<string> & words, vector<string>& tags) const
     {
         // prepair tag infos
-        vector<Dictionary::FreqInfo *> infos;
+        vector<const SparseVector<int> *> infos;
         for( int i = 0; i < words.size(); i ++) {
-            Dictionary::FreqInfo * info = _dict.getFreqInfo(words[i]);
+            const Dictionary::FreqInfo * info = _dict->getFreqInfo(words[i]);
             if(info == NULL) {
-                info = genPossibleInfo();
+                info = getPossibleInfo();
             }
             infos.push_back(info);
         }
         return tagging(infos,tags);
     }
 
-    inline bool tagging(const vector<SparseVector<int> *> & infos, vector<string>& tags) const
+    bool tagging(const vector<const SparseVector<int> *> & infos, vector<string>& tags) const
     {
-        vector<int> bests;
-        viterbi(_dict, infos, bests);
-        for(int i = 0; i < bests.size(); i ++) {
-            tags.push_back(_dict.getWord(bests[i]));
+        //vector<int> bests;
+        //viterbi(*_dict, infos, bests);
+        //for(int i = 0; i < bests.size(); i ++) {
+        //    tags.push_back(_dict->getWord(bests[i]));
+        //}
+        Token tokenArr[infos.size()];
+        viterbi(*_dict, infos, tokenArr, infos.size());
+        for(int i = 0; i < infos.size(); i ++) {
+            tags.push_back(_dict->getWord(tokenArr[i].pos));
         }
         return true;
+    }
+};
+
+class RoleTagger: public Tagger{
+public:
+    explicit RoleTagger(const Dictionary * dict):Tagger(dict)
+    {
+    }
+protected:
+    virtual void genPossibleInfo() const {
+        _possible_info.setAttrVal(_dict->getWordId("O"), _dict->getWordFreq("O") + 1);
+        _possible_info.setAttrVal(_dict->getWordId("D"), _dict->getWordFreq("D") + 1);
+        _possible_info.setAttrVal(_dict->getWordId("C"), _dict->getWordFreq("C") + 1);
+        _possible_info.setAttrVal(_dict->getWordId("S"), _dict->getWordFreq("S") + 1);
+    }
+};
+
+class NamedEntityRecognizer{
+    RoleTagger *tagger;
+    int PosType;
+    int B;
+    int C;
+    int D;
+    int S;
+    int MaxLen; 
+public:
+    // type: the pos of ne to be set when recognized.
+    // the max len of an ne word in byte
+    NamedEntityRecognizer(const Dictionary * dict,int type, int maxLen){
+        tagger = new RoleTagger(dict);
+        PosType = type;
+        B = dict->getWordId("B");
+        C = dict->getWordId("C");
+        D = dict->getWordId("D");
+        S = dict->getWordId("S");
+        MaxLen = maxLen;
+    }
+    ~NamedEntityRecognizer(){
+        delete tagger;
+    }
+
+    int recognize(const string & utf8str, Token * tokenArr, int tokenArrLen){
+        tagger->tagging(utf8str, tokenArr, tokenArrLen);
+        int ent_len = 0;
+        for(int i = 0; i < tokenArrLen;i++){
+            if(tokenArr[i].pos == B){
+                int j = i+1;
+                while(j<tokenArrLen && tokenArr[j].pos == C){
+                    j++;
+                }
+                if(j<tokenArrLen && tokenArr[j].pos == D && (tokenArr[j].end - tokenArr[i].start) < MaxLen){
+                    tokenArr[ent_len].start = tokenArr[i].start;
+                    tokenArr[ent_len].end = tokenArr[j].end;
+                    tokenArr[ent_len].pos = PosType;
+                    i = j;
+                }
+            }
+            else{
+                tokenArr[ent_len].start = tokenArr[i].start;
+                tokenArr[ent_len].end = tokenArr[i].end;
+                tokenArr[ent_len].pos = tokenArr[i].pos;
+                if(tokenArr[i].pos == S){
+                    tokenArr[ent_len].pos = PosType;
+                }
+            }
+            ent_len ++;
+        } 
+        return ent_len;
     }
 };
 
@@ -584,7 +665,7 @@ public:
         for(int i = 0; i < len; ) {
             int estr = utf8_next_estr(strUtf8,i);
             if (estr > i) {
-                //resultVec.push_back(Chip(i,estr,TYPE_ESTR));
+                //resultVec.push_back(Token(i,estr,TYPE_ESTR));
 				resultVec[retLen].start = i;
 				resultVec[retLen++].end = estr;
                 i = estr;
@@ -600,7 +681,7 @@ public:
                     break;
                 }
             }
-            //resultVec.push_back(Chip(i,next));
+            //resultVec.push_back(Token(i,next));
 			resultVec[retLen].start = i;
 			resultVec[retLen++].end = next;
             i = next;
@@ -657,7 +738,7 @@ public:
                     break;
                 }
             }
-            //resultVec.push_back(Chip(len - pos[next], len - pos[i]));;
+            //resultVec.push_back(Token(len - pos[next], len - pos[i]));;
 			resultVec[retLen].start = len - pos[next];
 			resultVec[retLen++].end = len - pos[i];
             i = next;
@@ -701,7 +782,7 @@ public:
         for(int i = 0; i < len; ) {
             int estr = utf8_next_estr(strUtf8,i);
             if (estr > i) {
-                //resultVec.push_back(Chip(i,estr,TYPE_ESTR));
+                //resultVec.push_back(Token(i,estr,TYPE_ESTR));
 				resultVec[retLen].start = i;
 				resultVec[retLen++].end = estr;
                 i = estr;
@@ -713,7 +794,7 @@ public:
                 j += utf8_char_len(strUtf8[j]);
                 if(dict->exist(strUtf8,i,j)) {
                     best = j;
-                    //resultVec.push_back(Chip(i,j));
+                    //resultVec.push_back(Token(i,j));
 					resultVec[retLen].start = i;
 					resultVec[retLen++].end = j;
                 } else if(!dict->hasPrefix(strUtf8,i,j)) {
@@ -721,7 +802,7 @@ public:
                 }
             }
             if(best <= i) {
-                //resultVec.push_back(Chip(i,next));
+                //resultVec.push_back(Token(i,next));
 				resultVec[retLen].start = i;
 				resultVec[retLen++].end = next;
             }
@@ -762,7 +843,7 @@ public:
             int nxt = end + utf8_char_len(strUtf8[end]);
             for(int k = 0; k< puncs_size; k ++) {
                 if (equal(puncs[k], strUtf8, end, nxt)) {
-                    //vector<Chip> resultVec;
+                    //vector<Token> resultVec;
                     int partLen = dosplit(strUtf8.substr(start, nxt - start),part,graph);
                     for(int m = 0; m < partLen; m++) {
                         resultVec[retLen].start = part[m].start + start;

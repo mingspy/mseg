@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "knife.hpp"
+using namespace mingspy;
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,7 +26,7 @@ void mseg_init();
  * @result_len : 切分结果数组长度,参考 MIN_TOKEN_BUFSIZE
  * @ return :  返回实际切分长度
  */
-int mseg_forward_split(const char * str, struct Token * result, int result_len); 
+int mseg_forward_split(const char * str, Token * result, int result_len); 
 
 /*
  * 使用后向切分
@@ -35,7 +36,7 @@ int mseg_forward_split(const char * str, struct Token * result, int result_len);
  * @result_len : 切分结果数组长度,参考 MIN_TOKEN_BUFSIZE
  * @ return :  返回实际切分长度
  */
-int mseg_backward_split(const char * str, struct Token * result, int result_len); 
+int mseg_backward_split(const char * str,  Token * result, int result_len); 
 
 /*
  * 使用智能切分
@@ -45,7 +46,7 @@ int mseg_backward_split(const char * str, struct Token * result, int result_len)
  * @result_len : 切分结果数组长度,参考 MIN_TOKEN_BUFSIZE
  * @ return :  返回实际切分长度
  */
-int mseg_smart_split(const char * str, struct Token * result, int result_len); 
+int mseg_smart_split(const char * str, Token * result, int result_len); 
 
 /*
  * 使用全切分
@@ -55,7 +56,7 @@ int mseg_smart_split(const char * str, struct Token * result, int result_len);
  * @result_len : 切分结果数组长度,参考 MIN_TOKEN_BUFSIZE
  * @ return :  返回实际切分长度
  */
-int mseg_full_split(const char * str, struct Token * result, int result_len); 
+int mseg_full_split(const char * str,  Token * result, int result_len); 
 
 /*
  * 标注分词结果 
@@ -65,7 +66,7 @@ int mseg_full_split(const char * str, struct Token * result, int result_len);
  * @result_len : 切分结果数组长度
  * @ return :  返回实际切分长度
  */
-int mseg_tagging(const char * str, struct Token * result, int result_len); 
+int mseg_tagging(const char * str,  Token * result, int result_len); 
 
 const char * mseg_get_pos(int id);
 

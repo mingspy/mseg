@@ -54,3 +54,4 @@ mseg.tar
 seg/builder
 test/test_so.cpp
 *.class
+seg/libmseg.so

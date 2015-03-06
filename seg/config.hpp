@@ -30,6 +30,7 @@ namespace mingspy
 static const string DEFAULT_CONF_PATH = "/data0/xiulei/mseg/mseg.conf";
 static const string DEFAULT_DICT_ROOT = "/data0/xiulei/mseg/";
 static const string DEFAULT_CORE_DICT_NAME = "core.dic";
+static const string DEFAULT_PERSON_DICT_NAME = "person.dic";
 static const string DEFAULT_INVS_DICT_NAME = "inverse.dic";
 static const string DEFAULT_USER_DICT_DIR = "mydicts/";
 
@@ -39,6 +40,7 @@ static const string ENV_MSEG_CONF_PATH = "MSEG_CONF_PATH"; // seg config key in 
 // keys in config file :
 static const string KEY_CONF_PATH = "CONF_PATH";
 static const string KEY_CORE_NAME = "CORE_DICT_NAME";
+static const string KEY_PERSON_NAME = "PERSON_DICT_NAME";
 static const string KEY_INVS_NAME = "INVS_DICT_NAME";
 static const string KEY_USER_DICT_DIR = "USER_DICT_DIR";
 static const string KEY_ISLOAD_INVS = "IS_LOAD_INVS";
@@ -138,6 +140,7 @@ private:
         _confs[KEY_CONF_PATH] = DEFAULT_CONF_PATH;
         _confs[KEY_DICT_ROOT] = DEFAULT_DICT_ROOT;
         _confs[KEY_CORE_NAME] = DEFAULT_CORE_DICT_NAME;
+        _confs[KEY_PERSON_NAME] = DEFAULT_PERSON_DICT_NAME;
         _confs[KEY_INVS_NAME] = DEFAULT_INVS_DICT_NAME;
         _confs[KEY_ISLOAD_INVS] = DEFAULT_ISLOAD_INVS;
         _confs[KEY_USER_DICT_DIR] = DEFAULT_USER_DICT_DIR;

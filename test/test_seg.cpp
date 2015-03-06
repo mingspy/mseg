@@ -125,7 +125,7 @@ void testShortPath(const Dictionary * core_dict)
 void testTagger(const Dictionary * core_dict)
 {
     TaggerEstimator est;
-    Tagger tagger(*core_dict);
+    Tagger tagger(core_dict);
     est.estimate(tagger);
 }
 void test_metrics(const Dictionary * core_dict, const Dictionary * inverse_dict)
@@ -137,19 +137,70 @@ void test_metrics(const Dictionary * core_dict, const Dictionary * inverse_dict)
     testTagger(core_dict);
 }
 
+void test_ner(const Dictionary * core_dict, const Dictionary * person_dict)
+{
+    string str = "李修磊、李修修、李磊磊、李修磊磊、王石在中国北京sina上班ing,想到天龙八部中没有杨过与小龙女，春光灿烂猪九妹与春光灿烂猪八戒";
+    Flycutter fc(core_dict);
+    Paoding pao(core_dict);
+    Unigram ug(core_dict);
+    RoleTagger tagger(person_dict);
+    NamedEntityRecognizer ner(person_dict, 8080, 100);
+    Token tks[10000];
+    cout<<"Enter the sentence to test ner. Enter \'exit\' to exit"<<endl;
+    while(true){
+        cout<<"> ";
+        getline(cin,str);
+        if(str == "exit"){
+            break;
+        }
+        cout<<"-------split---------"<<endl;
+        int len = fc.split(str,tks,1000); 
+        print(str,tks,len);
+        cout<<"-------tagging---------"<<endl;
+        tagger.tagging(str,tks,len);
+        print(str,tks,len);
+        cout<<"-------ner---------"<<endl;
+        len = ner.recognize(str,tks,len);
+        print(str,tks,len);
+    }
+
+}
 int main(int argc, char ** argv)
 {
+    if(argc < 2){
+        cout<<"Usage:"<<argv[0]<<" option"<<endl;
+        cout<<"options:"<<endl;
+        cout<<"knife\t test knives output"<<endl;
+        cout<<"metrics\t test knives perforemance"<<endl;
+        cout<<"ner\t test named entities recognizer"<<endl;
+        return -1;
+    }
     Timer timer;
     Dictionary core_dict;
     core_dict.open("./core.dic");
     Dictionary inverse_dict;
     inverse_dict.open("./inverse.dic");
+    Dictionary person_dict;
+    person_dict.open("./person.dic");
     double load_used = timer.elapsed();
     cout<<"load dicts used" << load_used<<endl;
+    string option = argv[1];
+    if(option == "knife"){
+        printSegs(&core_dict, & inverse_dict);
+    }else if(option == "metrics"){
+        test_metrics(&core_dict, &inverse_dict);
+    }else if(option == "ner"){
+        test_ner(&core_dict, &person_dict);
+    }
+    else{
+        Tagger tagger(&core_dict);
+        vector<string> str;
+        str.push_back("中国");
+        vector<string> tags;
+        tagger.tagging(str,tags);
+    }
 
-    printSegs(&core_dict, & inverse_dict);
-    test_metrics(&core_dict, &inverse_dict);
-    Token tks[1000];
-    mseg_full_split("ddd",tks,1000);
+    //mseg_full_split("ddd",tks,1000);
+    return 0;
 }
 

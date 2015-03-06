@@ -44,6 +44,7 @@ public:
         char * word;
         int id;
         FreqInfo * info;
+        WordInfo():word(NULL),id(-1),info(NULL){}
     } WordInfo;
     typedef map<int, WordInfo>::iterator WIT;
     typedef map<int, WordInfo>::const_iterator CWIT;
@@ -77,9 +78,6 @@ public:
     inline int addWord(const string & word)
     {
         int wordid = addWord(word, max_word_id + 1);
-        if (wordid == max_word_id + 1) {
-            max_word_id++;
-        }
         return wordid;
     }
 
@@ -91,6 +89,10 @@ public:
         }
         if (!datrie.add(word.c_str(), wordid)) {
             return -1;
+        }
+
+        if (wordid >= max_word_id){
+            max_word_id = wordid;
         }
 
         WordInfo info;
@@ -150,9 +152,15 @@ public:
 
     inline const WordInfo * getWordInfo(int wordId) const
     {
+        /*
         CWIT it = words_info_table.find(wordId);
         if (it != words_info_table.end()) {
             return & (it->second);
+        }
+        return NULL;
+        */
+        if (wordId >= 0){
+            return & words_info_table[wordId];
         }
         return NULL;
     }
@@ -180,11 +188,17 @@ public:
 
     inline FreqInfo * getFreqInfo(int wordid) const
     {
+        /*
         CWIT it = words_info_table.find(wordid);
         if(it == words_info_table.end()) {
             return NULL;
         }
         return it->second.info;
+        */
+        if (wordid > 0)
+        return words_info_table[wordid].info;
+
+        return NULL;
     }
 
     inline FreqInfo * operator[](const string & word) const
@@ -237,9 +251,9 @@ public:
 
     int getAttrFreq(int wordId, int attrId) const
     {
-        CWIT it = words_info_table.find(wordId);
-        if (it != words_info_table.end() && it->second.info != NULL) {
-            return it->second.info->getAttrValue(attrId);
+        const FreqInfo * info = getFreqInfo(wordId);
+        if(info){
+            return info->getAttrValue(attrId);
         }
         return 0;
     }

@@ -25,15 +25,22 @@ using namespace std;
 int main(int argc, char ** argv)
 {
     mingspy::Builder builder;
-    vector<string> files;
-    listFiles("../../data/people/",files);
     if(argc > 1) {
         cout<<"building inverse dictionary"<<endl;
         builder.setInverse(true);
-        builder.buildFromPeopleDaily(files,"./inverse.dic");
     } else {
         cout<<"building core dictionary"<<endl;
-        builder.buildFromPeopleDaily(files,"./core.dic");
+    }
+    vector<string> files;
+    listFiles("../../data/people/",files);
+    builder.buildFromPeopleDaily(files);
+    builder.load_udf_dict("../../data/dicts/main.txt", "UDF");
+    builder.load_udf_dict("../../data/dicts/persons.txt", "nr");
+    builder.load_udf_dict("../../data/dicts/companies.txt", "nt");
+    if(argc > 1) {
+        builder.save("./inverse.dic");
+    } else {
+        builder.save("./core.dic");
     }
     return 0;
 }

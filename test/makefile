@@ -7,7 +7,7 @@ LIB=-lmseg
 CC=g++ -DBREAKDOWN $(INCLUDE) $(LIBDIR) -O3
 #CC=g++ -DDEBUG -g $(INCLUDE)
 
-all:uda useg uepoll uevent
+all:uda useg uepoll uevent lookup
 .PHONY:all
 
 uda:test_datrie.cpp ../seg/dict.hpp ../util/datrie.hpp
@@ -16,6 +16,8 @@ useg:test_seg.cpp ../seg/dict.hpp ../seg/knife.hpp
 	$(CC) test_seg.cpp -o useg
 uepoll:test_epoll.cpp
 	$(CC) test_epoll.cpp -o uepoll
+lookup:dict_lookup.cpp
+	$(CC) dict_lookup.cpp -o lookup
 uevent:test_event.cpp
 	$(CC) -levent test_event.cpp -o uevent
 clean:

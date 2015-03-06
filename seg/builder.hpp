@@ -32,13 +32,13 @@ namespace mingspy
 {
 
 struct PeopleEntity {
-    string pos;
-    string entpos;
-    string word;
-    vector<PeopleEntity> sub;
-    bool isCompose;
-    bool isBegin;
-    bool isEnd;
+    string pos; // 词性
+    string entpos; // 组合词词性
+    string word; // 词
+    vector<PeopleEntity> sub; // 如果是组合词，那么所以组合都放入sub中
+    bool isCompose; // 是否组合词
+    bool isBegin; // 是否组合词开始
+    bool isEnd; // 是否组合词结束
     PeopleEntity():isCompose(false),isBegin(false),isEnd(false) {}
 };
 
@@ -70,7 +70,7 @@ inline bool isPos(const string & s)
 
 PeopleEntity parseEntity(string & t)
 {
-    int chinese_len =  string("中").length();
+    static int chinese_len =  string("中").length();
     PeopleEntity ent;
     int idx = t.find('/');
     if (t.find("http://") != string::npos)
@@ -123,8 +123,11 @@ PeopleEntity parseEntity(string & t)
 
 }
 
-bool parsePeopleEntities(vector<string> & tokenStrList,vector<PeopleEntity> & vec)
+// 分析一段训练文本，解析成词/词性列表。组合词会外包一层PeopleEntity,属性设置
+// 成组合词，词内容为所有子词的集合
+bool parsePeopleEntities(vector<string> & tokenStrList,vector<PeopleEntity> & result_vec)
 {
+    vector<PeopleEntity> vec;
     PeopleEntity * compose_entity = NULL;
     for (int i = 0; i < tokenStrList.size(); i++) {
         if(tokenStrList[i].empty() || tokenStrList[i] == " ") {
@@ -146,41 +149,82 @@ bool parsePeopleEntities(vector<string> & tokenStrList,vector<PeopleEntity> & ve
             vec.push_back(ent);
         }
         if (ent.isEnd) {
-            compose_entity->entpos = ent.entpos;
+            compose_entity->pos = ent.entpos;
+            for(int i = 0; i < compose_entity->sub.size(); i++){
+                compose_entity->word += compose_entity->sub[i].word;
+            }
             compose_entity = NULL;
         }
+    }
+
+    // 人名合并：
+    for(int i = 0; i < vec.size(); ){
+        if(i < (vec.size() - 1 )&&vec[i].pos == "nr" && vec[i+1].pos == "nr"){
+            // 一个utf8汉字占3个字节
+            if(vec[i].word.length() == 3 && vec[i+1].word.length() <= 6){
+                result_vec.push_back(PeopleEntity());
+                PeopleEntity &ent = result_vec[result_vec.size() -1];
+                ent.isCompose = true;
+                ent.pos = "nr";
+                ent.sub.push_back(vec[i]);
+                ent.sub.push_back(vec[i+1]);
+                ent.word += vec[i].word;
+                ent.word += vec[i+1].word;
+                i += 2;
+                continue;
+            }
+        }
+        result_vec.push_back(vec[i]);
+        i += 1;
     }
     return true;
 }
 
+// 命名实体识别角色统一定义如下
+// name Entity roles: 
+// A - prefix 上文
+// B - begin 开始
+// C - conject 中间
+// D - end 结束
+// E - posfix 后缀
+// M - middle 实体之间连词
+// O - others 其他
+// S - 单独成词 
 class Builder
 {
-    int start_word_id;
-    int start_pos_id;
     int words_total;
     int pos_total;
     Dictionary dict;
+    Dictionary person_dict;
     int errors;
     bool inverse;
-    void add(string & word, string & pos)
+    void add(string word, const string & pos)
     {
-        dict.setMaxWordId(start_pos_id);
-        dict.addWord(pos);
-        start_pos_id = dict.getMaxWordId();
-        dict.setMaxWordId(start_word_id);
         if(inverse) {
             reverse(word.begin(),word.end());
         }
         dict.addWord(word);
-        start_word_id = dict.getMaxWordId();
-        dict.addAttrFreq(word,pos,1);
+        if(!inverse) {
+            dict.addAttrFreq(word,pos,1);
+        }else{
+            dict.addAttrFreq(word,-1,1);
+        }
         words_total += 1;
         pos_total += 1;
     }
 public:
-    Builder(int pos_id=0,int word_id=1000):start_pos_id(pos_id),
-        start_word_id(word_id),pos_total(0),words_total(0),errors(0),inverse(false) {}
-    bool buildFromPeopleDaily(const vector<string> &files, const string & output)
+    Builder():pos_total(0),words_total(0),errors(0),inverse(false) {
+            load_pos();
+            person_dict.addWord("A");
+            person_dict.addWord("B");
+            person_dict.addWord("C");
+            person_dict.addWord("D");
+            person_dict.addWord("E");
+            person_dict.addWord("M");
+            person_dict.addWord("O");
+            person_dict.addWord("S");
+        }
+    bool buildFromPeopleDaily(const vector<string> &files)
     {
         Timer timer;
         int line_count = 0;
@@ -198,21 +242,61 @@ public:
         }
         dict.addAttrFreq(POS_FREQ_TOTAL,-1,pos_total);
         dict.addAttrFreq(WORDS_FREQ_TOTAL,-1,words_total);
+        cout<<POS_FREQ_TOTAL<<" get pos total"<<dict.getWordFreq(POS_FREQ_TOTAL)<<" get attr total"<<dict.getAttrFreq(POS_FREQ_TOTAL,-1)<<endl;
+        //dict.addAttrFreq("一一列举","UDF",1);
+        cout<<POS_FREQ_TOTAL<<" get pos total"<<dict.getWordFreq(POS_FREQ_TOTAL)<<" get attr total"<<dict.getAttrFreq(POS_FREQ_TOTAL,-1)<<endl;
+        cout<<"一一列举 get pos total"<<dict.getWordFreq("一一列举")<<" get attr total"<<dict.getAttrFreq("一一列举",-1)<<endl;
 
         double load_word_end_time = timer.elapsed();
         cout<<"\n---------------------------------------------------------------"<<endl
             <<"parsed total lines:"<<line_count<<" used:"<<(load_word_end_time)
             <<"s\nerrors="<<errors<<endl
-            <<"total words:"<<start_word_id - 1000<<" total pos:"<<start_pos_id<<endl;
-        bool result = dict.save(output);
+            <<"total words:"<<words_total<<" total pos:"<<pos_total<<endl;
         double end_time = timer.elapsed();
-        Dictionary d2;
-        d2.open(output);
-        double open_end_time = timer.elapsed();
-        cout<<"build finished! total used:"<<(end_time)
-            <<"s\ndict save used:"<<(end_time - load_word_end_time)
-            <<"s\ndict open used:"<<(open_end_time - end_time)<<endl;
-        return result;
+        cout<<"build finished! total used:"<<(end_time) <<endl;
+        return true;
+    }
+
+    void save(const string & output){
+        cout<<"\n-------------------------saving dicts-----------------------------------"<<endl
+            <<"total words:"<<words_total<<" total pos:"<<pos_total<<endl;
+        cout<<POS_FREQ_TOTAL<<" get pos total"<<dict.getWordFreq(POS_FREQ_TOTAL)<<" get attr total"<<dict.getAttrFreq(POS_FREQ_TOTAL,-1)<<endl;
+        cout<<"一一列举 get pos total"<<dict.getWordFreq("一一列举")<<" get attr total"<<dict.getAttrFreq("一一列举",-1)<<endl;
+        dict.save(output);
+        if (!inverse) person_dict.save("./person.dic");
+    }
+
+    void load_udf_dict(const string & path, const string & type){
+        LineFileReader reader(path);
+        string *line = NULL;
+        const int PERSON = 1;
+        int dict_type = 0;
+        if (type == "nr"){
+            dict_type = PERSON;
+        }
+
+        int line_count = 0;
+        while((line = reader.getLine()) != NULL) {
+            add(*line,type);
+            if(++line_count%100 == 0) {
+                cout<<"\rparsed lines -> "<<line_count;
+            }
+            if(!inverse&&dict_type == PERSON){
+                person_dict.addAttrFreq(*line,type,1);
+                for(int i = 0; i < line->size();){
+                    int next = utf8_char_len((*line)[i]);
+                    string word = line->substr(i,next);
+                    if(i == 0){
+                        person_dict.addAttrFreq(word,"B",1);
+                    }else if(i + next == line->size()){
+                        person_dict.addAttrFreq(word,"D",1);
+                    }else{
+                        person_dict.addAttrFreq(word,"C",1);
+                    }
+                    i += next;
+                }
+            }
+        }
     }
 
     void procALine(string & line)
@@ -229,6 +313,8 @@ public:
                     for(int j = 0; j < ent.sub.size(); j++) {
                         add(ent.sub[j].word, ent.sub[j].pos);
                     }
+                    // Add compose word to dict
+                    add(ent.word, ent.pos);
                 } else {
                     add(ent.word,ent.pos);
                 }
@@ -251,6 +337,63 @@ public:
                 }
                 dict.addAttrFreq(pre,next, 1);
             }
+
+            // person name
+            string prev = "";
+            for(int i = 0; i < vec.size(); i++){
+                PeopleEntity & ent = vec[i];
+                string role = "O";
+                if(ent.pos == "nr"){
+                    role = "S";
+                    string tmp_prev = prev;
+                    for(int i = 0; i < ent.word.length(); ){
+                        string tmp_role = "C";
+                        int next  = utf8_char_len(ent.word[i]);
+                        if (i == 0){
+                            tmp_role = "B";
+                        }
+                        else if (i + next == ent.word.length()){
+                            tmp_role = "D";
+                        }
+                        person_dict.addAttrFreq(ent.word.substr(i,3),tmp_role,1);
+                        if(!tmp_prev.empty()){
+                            person_dict.addAttrFreq(tmp_prev,tmp_role,1);
+                            if(tmp_prev == "S"){
+                                person_dict.addAttrFreq("D",tmp_role,1);
+                            }
+                        }
+                        tmp_prev = tmp_role;
+                        i += next;
+                    }
+
+                    if (ent.word.length() / 3 == 2){
+                        person_dict.addAttrFreq("BD",-1,1);
+                    }else{
+                        person_dict.addAttrFreq("BCD",-1,1);
+                    }
+                }else{
+                    if (i > 0 && vec[i-1].pos == "nr"){
+                        role = "E";
+                    }
+
+                    if (i < vec.size() - 1 && vec[i].pos == "nr"){
+                        if(role == "E"){
+                            role = "M";
+                        } else{
+                            role = "A";
+                        }
+                    }
+                }
+
+                person_dict.addAttrFreq(ent.word,role,1);
+                if(prev != ""){
+                    person_dict.addAttrFreq(prev,role,1);
+                    if(prev == "S"){
+                        person_dict.addAttrFreq("D",role,1);
+                    }
+                }
+                prev = role;
+            }
         } catch(parse_error e) {
             errors ++;
             cerr<<e<<" \""<<line<<"\""<<endl;
@@ -259,6 +402,16 @@ public:
     void setInverse(bool isInverse)
     {
         inverse = isInverse;
+    }
+private:
+    void load_pos(){
+        LineFileReader reader("./pos_tag_id.txt");
+        string *line = NULL;
+        while((line = reader.getLine()) != NULL) {
+            vector<string> vec;
+            split(*line," ",vec);
+            dict.addWord(vec[0], atoi(vec[1].c_str()));
+        }
     }
 };
 }
