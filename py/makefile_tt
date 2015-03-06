@@ -1,0 +1,14 @@
+CC=g++
+INC=-I/usr/include/python2.6 -I/usr/lib/python2.6/config -I ../interface
+#COMMON=-O3 -fPIC -Wall -DNDEBUG -lpthread
+COMMON=-g -fPIC -Wall -lpthread
+LIBS=../lib/libmbseg_64.a
+SRC=tt.cpp
+EXE=tokenizer
+SO=$(EXE).so
+#all: exe so
+
+#exe:
+#	$(CC) $(COMMON) $(SRC) $(INC) $(LIBS) /usr/lib64/python2.6/config/libpython2.6.so -o $(EXE)
+so:
+	$(CC) $(COMMON) $(SRC) $(INC) $(LIBS)  -o $(SO) -shared 

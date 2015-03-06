@@ -249,6 +249,7 @@ public:
     {
         outf.write(reinterpret_cast<char *>(&num_cells), sizeof(int));
         outf.write(reinterpret_cast<char *>(_cell), sizeof(Cell) * num_cells);
+        cout<<"DoubleArray.num_cells="<<num_cells<<" bytes:"<<sizeof(Cell) * num_cells<<endl;
         return true;
     }
 
@@ -649,14 +650,18 @@ public:
         outf.write(reinterpret_cast<char *>(&first_free), sizeof(int));
         outf.write(reinterpret_cast<char *>(&num_tails), sizeof(int));
         outf.write(reinterpret_cast<char *>(tails), sizeof(TailBlock)*num_tails);
+        int tail_bytes = sizeof(int)*2 + sizeof(TailBlock)*num_tails;
         int len;
         for(int i = 1; i < num_tails; i++) {
             if(tails[i].suffix != NULL) {
                 len = sizeof(node_type_)*(length_func_()(tails[i].suffix)+1);
                 outf.write(reinterpret_cast<char *>(&len), sizeof(int));
                 outf.write(reinterpret_cast<char *>(tails[i].suffix), len);
+                tail_bytes += len+sizeof(int);
             }
         }
+        cout<<"Tail.num_tails="<<num_tails<<" bytes:"<<tail_bytes<<endl;
+
         return true;
     }
     bool read(ifstream & inf)

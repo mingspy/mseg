@@ -9,6 +9,28 @@
 
 using namespace std;
 using namespace weibo::tokenizer;
+#define uki_DICT_ADD_NEW(dict,key,valtype,val) \
+{\
+    PyObject *obj = Py_BuildValue(valtype,val); \
+    PyDict_SetItemString(dict,key,obj);\
+    Py_DECREF(obj); \
+}
+#define uki_DICT_ADD(dict,key,obj) \
+{\
+    PyDict_SetItemString(dict,key,obj);\
+    Py_DECREF(obj); \
+}
+#define uki_LIST_APPEND_NEW(list,valtype,val) \
+{\
+    PyObject *obj = Py_BuildValue(valtype,val); \
+    PyList_Append(list,obj);\
+    Py_DECREF(obj);\
+}
+#define uki_LIST_APPEND(list,obj) \
+{\
+    PyList_Append(list,obj);\
+    Py_DECREF(obj);\
+}
 
 //key is config file path, value is tokenizer pointer
 static map<string,Tokenizer*> tokenizers;
@@ -46,29 +68,29 @@ PyObject *formatToken(Token *t)
         return NULL;
     PyObject *wd = PyDict_New();
     string s = string(t->pWord,t->byteLength);
-//    如果是空格，下面这句在c++的测试程序中会core dump
-    PyDict_SetItemString(wd,"id",Py_BuildValue("i",t->wordId));
-    PyDict_SetItemString(wd,"prop",Py_BuildValue("i",t->property));
-    PyDict_SetItemString(wd,"pos_tag",Py_BuildValue("i",t->posTagId));
-    PyDict_SetItemString(wd,"word",Py_BuildValue("s",s.c_str()));
-    PyDict_SetItemString(wd,"score",Py_BuildValue("i",int(t->weight)));
-    PyDict_SetItemString(wd,"len",Py_BuildValue("i",int(t->charCount)));
-    PyDict_SetItemString(wd,"offset",Py_BuildValue("i",int(t->charOffset)));
-    PyDict_SetItemString(wd,"sem_tag_num",Py_BuildValue("i",t->semTagNum));
+    //    如果是空格，下面这句在c++的测试程序中会core dump
+    //    需要对引用过的PyObject 进行Py_DECREF操作，不然无法释放
+    uki_DICT_ADD_NEW(wd,"id","i",t->wordId);
+    uki_DICT_ADD_NEW(wd,"prop","i",t->property);
+    uki_DICT_ADD_NEW(wd,"pos_tag","i",t->posTagId);
+    uki_DICT_ADD_NEW(wd,"word","s",s.c_str());
+    uki_DICT_ADD_NEW(wd,"score","i",int(t->weight));
+    uki_DICT_ADD_NEW(wd,"len","i",int(t->charCount));
+    uki_DICT_ADD_NEW(wd,"offset","i",int(t->charOffset));
+    uki_DICT_ADD_NEW(wd,"sem_tag_num","i",t->semTagNum);
     PyObject *semTags = PyList_New(0);
     for(int i=0;i<t->semTagNum;i++)
-        PyList_Append(semTags,Py_BuildValue("i",t->pSemTagId[i]));
-    PyDict_SetItemString(wd,"sem_tags",semTags);
-//    cout<<"id:"<<t->wordId<<" "<<"word:"<<s<<endl;
-    PyDict_SetItemString(wd,"small_word_num",Py_BuildValue("i",t->childNum));
+        uki_LIST_APPEND_NEW(semTags,"i",t->pSemTagId[i]);
+    uki_DICT_ADD(wd,"sem_tags",semTags);
+    uki_DICT_ADD_NEW(wd,"small_word_num","i",t->childNum);
     if(t->childNum>0)
     {
         PyObject *smallWords = PyList_New(0);
         for(int i=0;i<t->childNum;++i)
         {
-            PyList_Append(smallWords,Py_BuildValue("s",string(t->pChild[i].pWord,t->pChild[i].byteLength).c_str()));
+            uki_LIST_APPEND_NEW(smallWords,"s",string(t->pChild[i].pWord,t->pChild[i].byteLength).c_str());
         }
-        PyDict_SetItemString(wd,"small_words",smallWords);
+        uki_DICT_ADD(wd,"small_words",smallWords);
     }
 
     return wd;
@@ -83,8 +105,9 @@ void formatResult(SegResult *pSegResult,PyObject *res)
     while(cur!=NULL)
     {
         PyObject *tp = formatToken(cur);
-        if(tp!=NULL)
-            PyList_Append(res,tp);
+        if(tp!=NULL){
+            uki_LIST_APPEND(res,tp);
+        }
         wcount += 1;
         cur = cur->pNext;
     }
