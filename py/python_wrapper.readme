@@ -1,0 +1,25 @@
+http://blog.csdn.net/fxjtoday/article/details/6059874
+python封装分词接口
+输入为字符串和pid，python接口中根据pid找到对应的config文件（dict先存好)
+将文本和conf文件传给分词的c接口
+输出参数比较复杂,返回嵌套的dict
+https://docs.python.org/2/c-api/dict.html
+PyDict_New
+PyDict_SetItem
+PyDict_SetItemString
+
+关于嵌套元祖
+http://it.100xuexi.com/view/otdetail/20130122/a56789e4-dc61-41e4-ae6a-841a905266b7.html
+
+https://docs.python.org/2/c-api/index.html
+关于setup打包
+https://docs.python.org/2/extending/building.html#building
+
+
+others:
+ok = PyArg_ParseTuple(args, "lls", &k, &l, &s); /* Two longs and a string */  
+/* Possible Python call: f(1, 2, 'three') */ 
+
+http://blog.sina.com.cn/s/blog_4c88d09a0100jc6g.html
+使用 PyObject 必须小心谨慎，因为它是引用计数的，Py_INCREF()、Py_DECREF()是用于加减 PyObject 引用计数的宏，不正确的 +- 会造成很难察觉的内存泄漏。
+注：Py_INCREF(PyObject*)、Py_DECREF(PyObject*) 都不对参数进行检查，NULL/0参数有可能造成段错误，替代版本为Py_XINCREF()、Py_XDECREF()，当参数为NULL 时则什么都不做。
