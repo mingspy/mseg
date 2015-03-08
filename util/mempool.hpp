@@ -321,6 +321,9 @@ public:
         m_free_func = ff;
     }
 
+    void setDynamicIncreament(std::size_t sz){
+        m_dynamicSize = size;
+    }
 private:
 
     struct header {
@@ -366,7 +369,7 @@ private:
     char m_static_memory[MEM_POOL_STATIC_SIZE];                // Static raw memory
     alloc_func *m_alloc_func;             // Allocator function, or 0 if default is to be used
     free_func *m_free_func;               // Free function, or 0 if default is to be used
-    const std::size_t m_dynamicSize;
+    std::size_t m_dynamicSize;
 };
 
 }

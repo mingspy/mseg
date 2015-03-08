@@ -55,3 +55,17 @@ seg/builder
 test/test_so.cpp
 *.class
 seg/libmseg.so
+
+test/lookup
+
+*.plist
+
+test/lookup.dSYM/Contents/Resources/DWARF/lookup
+
+test/uda
+
+test/uda.dSYM/Contents/Resources/DWARF/uda
+
+test/useg
+
+test/useg.dSYM/Contents/Resources/DWARF/useg

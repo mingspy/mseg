@@ -62,6 +62,7 @@ protected:
 public:
     explicit Dictionary():max_word_id(0)
     {
+        mempool.setDynamicIncreament(1024*1024);
     }
 
     ~Dictionary()
