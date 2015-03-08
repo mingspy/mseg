@@ -46,7 +46,7 @@ static void mseg_load_user_dict(Dictionary & dict, const string & file, bool is_
     // 词\t词频
     LineFileReader reader(file);
     string *line = NULL;
-    while(line = reader.getLine()) {
+    while((line = reader.getLine())!= NULL) {
         vector<string> vec;
         split(*line, "\t",vec);
         if(vec.size() == 0) continue;
@@ -140,6 +140,7 @@ int mseg_full_split(const char * str, struct Token * result, int result_len){
 } 
 
 int mseg_tagging(const char * str, struct Token * result, int result_len){
+    return 0;
 }
 
 const char * mseg_get_pos(int id){

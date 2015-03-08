@@ -42,20 +42,7 @@ struct PeopleEntity {
     PeopleEntity():isCompose(false),isBegin(false),isEnd(false) {}
 };
 
-class parse_error
-{
-    string _msg;
-public:
-    parse_error(const string & msg):_msg(msg)
-    {
-    }
 
-    friend ostream&operator<<(ostream & out,const  parse_error & e)
-    {
-        out<<e._msg;
-        return out;
-    }
-};
 inline bool isPos(const string & s)
 {
     const char * p = s.c_str();
@@ -76,11 +63,11 @@ PeopleEntity parseEntity(string & t)
     if (t.find("http://") != string::npos)
         idx = t.rfind('/');
     if (idx == string::npos)
-        throw parse_error("format error dont found / ");
+        throw parse_error("format error dont found / ",(void *)"builder.hpp Line 66");
     ent.word = t.substr(0,idx);
     ent.pos = t.substr(idx+1);
     if(ent.word.empty() && ent.pos.empty())
-        throw parse_error("null word or role:");
+        throw parse_error("null word or role:",(void *)ent.word.c_str());
     if (ent.word == "" && ent.pos == "/w") {
         ent.word = "/";
         ent.pos = "w";
@@ -116,7 +103,7 @@ PeopleEntity parseEntity(string & t)
         int wlen = ent.word.length();
         if (isPunc(ent.word.substr(0,3)) || isPunc(ent.word.substr(0,1))
                 || isPunc(ent.word.substr(wlen - 1)) || isPunc(ent.word.substr(wlen -1))) {
-            throw parse_error("has punction");
+            throw parse_error("has punction",(void *)"end");
         }
     }
     return  ent;
@@ -135,9 +122,9 @@ bool parsePeopleEntities(vector<string> & tokenStrList,vector<PeopleEntity> & re
         }
         PeopleEntity ent = parseEntity(tokenStrList[i]);
         if (ent.word.empty() and ent.pos.empty())
-            throw parse_error("parse token failed");
+            throw parse_error("parse token failed",(void *)"parsePeopleEntities");
         if ((ent.isBegin && compose_entity) || (ent.isEnd && !compose_entity))
-            throw parse_error("composed entity checking error");
+            throw parse_error("composed entity checking error",(void *)"parsePeopleEntities");
         if (ent.isBegin) {
             vec.push_back(PeopleEntity());
             compose_entity = &vec[vec.size() -1];
@@ -396,7 +383,7 @@ public:
             }
         } catch(parse_error e) {
             errors ++;
-            cerr<<e<<" \""<<line<<"\""<<endl;
+            cerr<<e.what()<<" \""<<line<<"\""<<endl;
         }
     }
     void setInverse(bool isInverse)

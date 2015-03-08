@@ -312,7 +312,7 @@ void genWordGraph(const Dictionary & dict,const string &strUtf8, Graph & graph)
     for ( int i = 0; i < row; i ++) {
         for(int j = i+1; j <= row; j ++) {
             if (dict.exist(strUtf8,graph.get(i),graph.get(j))) {
-                if (info = dict.getFreqInfo(strUtf8,graph.get(i),graph.get(j))) {
+                if ((info = dict.getFreqInfo(strUtf8,graph.get(i),graph.get(j))) != NULL) {
                     graph.setVetex(i,j,info->sum());
                 } else {
                     graph.setVetex(i,j,1);
@@ -537,7 +537,8 @@ public:
         //for(int i = 0; i < bests.size(); i ++) {
         //    tags.push_back(_dict->getWord(bests[i]));
         //}
-        Token tokenArr[infos.size()];
+        //const int sz = infos.size();
+        Token tokenArr[1000];
         viterbi(*_dict, infos, tokenArr, infos.size());
         for(int i = 0; i < infos.size(); i ++) {
             tags.push_back(_dict->getWord(tokenArr[i].pos));

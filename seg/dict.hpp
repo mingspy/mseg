@@ -24,6 +24,7 @@
 #include <limits.h>
 #include "datrie.hpp"
 #include "sparse.hpp"
+#include "mempool.hpp"
 
 using namespace std;
 
@@ -46,20 +47,20 @@ public:
         FreqInfo * info;
         WordInfo():word(NULL),id(-1),info(NULL){}
     } WordInfo;
-    typedef map<int, WordInfo>::iterator WIT;
-    typedef map<int, WordInfo>::const_iterator CWIT;
+    typedef map<int, WordInfo*>::iterator WIT;
+    typedef map<int, WordInfo*>::const_iterator CWIT;
 protected:
     CharTrie datrie;
     // TODO change to self manganger type.
-    mutable map<int, WordInfo> words_info_table;
-    int total_freq;
+    mutable map<int, WordInfo *> words_info_table;
     string name;
     string filepath;
     //bool readonly;
     int max_word_id;
+    MemoryPool<char> mempool;
 
 public:
-    explicit Dictionary():max_word_id(0),total_freq(0)
+    explicit Dictionary():max_word_id(0)
     {
     }
 
@@ -95,12 +96,11 @@ public:
             max_word_id = wordid;
         }
 
-        WordInfo info;
+        WordInfo *info = reinterpret_cast<WordInfo *>(mempool.allocAligned(sizeof(WordInfo)));
         int sz = word.length()+1;
-        info.word = new char[sz];
-        memcpy(info.word, word.c_str(), sz * sizeof(char));
-        info.id = wordid;
-        info.info = NULL;
+        info->word = mempool.allocStr(word.c_str(),sz);
+        info->id = wordid;
+        info->info = NULL;
         words_info_table[wordid] = info;
         return wordid;
     }
@@ -130,12 +130,12 @@ public:
             return false;
         }
 
-        if(words_info_table[id].info == NULL) {
-            words_info_table[id].info = new FreqInfo(info);
+        if(words_info_table[id]->info == NULL) {
+            words_info_table[id]->info = new FreqInfo(info);
         } else {
-            words_info_table[id].info->merge(info);
+            words_info_table[id]->info->merge(info);
         }
-        total_freq += info.sum();
+        
         return true;
     }
 
@@ -160,7 +160,7 @@ public:
         return NULL;
         */
         if (wordId >= 0){
-            return & words_info_table[wordId];
+            return words_info_table[wordId];
         }
         return NULL;
     }
@@ -196,7 +196,7 @@ public:
         return it->second.info;
         */
         if (wordid > 0)
-        return words_info_table[wordid].info;
+            return words_info_table[wordid]->info;
 
         return NULL;
     }
@@ -229,11 +229,10 @@ public:
         if (id <= 0) {
             return INT_MIN;
         }
-        if (!words_info_table[id].info) {
-            words_info_table[id].info = new FreqInfo();
+        if (!words_info_table[id]->info) {
+            words_info_table[id]->info = new FreqInfo();
         }
-        total_freq += freq;
-        return words_info_table[id].info->addAttrFreq(attrId,freq);
+        return words_info_table[id]->info->addAttrFreq(attrId,freq);
     }
 
     int getAttrFreq(const string & word, int attrId) const
@@ -318,9 +317,7 @@ public:
             return false;
         }
         filepath = path;
-        if(!inf.read(reinterpret_cast<char *> (&total_freq), sizeof(int))) {
-            return false;
-        }
+        
         if(!inf.read(reinterpret_cast<char *> (&max_word_id), sizeof(int))) {
             return false;
         }
@@ -338,13 +335,33 @@ public:
         if(!inf.read(reinterpret_cast<char *> (&sz), sizeof(int))) {
             return false;
         }
-        int id;
-        WordInfo info;
+        WordInfo * p = reinterpret_cast<WordInfo*>(mempool.allocAligned(sz*sizeof(WordInfo)));
+        if(!inf.read(reinterpret_cast<char *> (p), sz*sizeof(WordInfo))) {
+            return false;
+        }
+        
         for (int i = 0; i < sz; i++) {
-            if (!readinfo(inf,&id, &info)) {
-                return false;
+            words_info_table[p[i].id] = p+i;
+        }
+        int bytes;
+        if(!inf.read(reinterpret_cast<char *> (&bytes), sizeof(int))) {
+            return false;
+        }
+        char * str = mempool.allocStr(NULL,bytes);
+        if(!inf.read(reinterpret_cast<char *> (str), bytes)) {
+            return false;
+        }
+        for (int i = 0; i < sz; i++) {
+            if(p[i].word){
+                p[i].word = str+sizeof(int);
+                str += (*((int*)(str)))+sizeof(int);
             }
-            words_info_table[id] = info;
+        }
+        for (int i = 0; i < sz; i++) {
+            if(p[i].info){
+                p[i].info = new FreqInfo();
+                p[i].info->read(inf);
+            }
         }
         return datrie.read(inf);
 
@@ -353,13 +370,11 @@ public:
     {
         ofstream outf(path.c_str(),ios::binary|ios::out);
         if (!outf.good()) {
-            cerr<<"can't open dict:"<<path<<endl;
+            cerr<<"can't open file:"<<path<<endl;
             return false;
         }
         filepath = path;
-        if(!outf.write(reinterpret_cast<char *>(&total_freq), sizeof(int))) {
-            return false;
-        }
+        
         if(!outf.write(reinterpret_cast<char *>(&max_word_id), sizeof(int))) {
             return false;
         }
@@ -379,9 +394,39 @@ public:
         if(!outf.write(reinterpret_cast<char *>(&sz), sizeof(int))) {
             return false;
         }
+        // write all WordInfo together, then loading can be more faster.
         for (CWIT it = words_info_table.begin(); it != words_info_table.end(); it++) {
-            if (!writeinfo(outf,it->first, it->second)) {
+            if(!outf.write(reinterpret_cast<char *>(const_cast<WordInfo *>(it->second)), sizeof(WordInfo))) {
                 return false;
+            }
+        }
+        
+        // write word
+        int total_bytes = 0;
+        for (CWIT it = words_info_table.begin(); it != words_info_table.end(); it++) {
+            if (it->second->word) {
+                int sz = Length<char>()(it->second->word) + 1;
+                total_bytes += sz + sizeof(int);
+            }
+        }
+        if(!outf.write(reinterpret_cast<char *>(&total_bytes), sizeof(int))) {
+            return false;
+        }
+        for (CWIT it = words_info_table.begin(); it != words_info_table.end(); it++) {
+            if (it->second->word) {
+                int sz = Length<char>()(it->second->word) + 1;
+                if(!outf.write(reinterpret_cast<char *>(&sz), sizeof(int))) {
+                    return false;
+                }
+                if(!outf.write(it->second->word, sz)) {
+                    return false;
+                }
+            }
+        }
+        // write info
+        for (CWIT it = words_info_table.begin(); it != words_info_table.end(); it++) {
+            if (it->second->info) {
+                it->second->info->write(outf);
             }
         }
         return datrie.write(outf);
@@ -391,64 +436,13 @@ private:
     void clear()
     {
         for (WIT it = words_info_table.begin(); it != words_info_table.end(); it++) {
-            WordInfo info = it->second;
-            if (info.word) {
-                delete [] info.word;
-            }
-            if (info.info) {
-                delete  info.info;
+            WordInfo *info = it->second;
+            if (info->info) {
+                delete  info->info;
             }
         }
         words_info_table.clear();
         max_word_id = 0;
-        total_freq = 0;
-    }
-
-    inline bool readinfo(ifstream & inf, int * id, WordInfo *info) const
-    {
-        if(!inf.read(reinterpret_cast<char *>(id), sizeof(int))) {
-            return false;
-        }
-        if(!inf.read(reinterpret_cast<char *>(info), sizeof(WordInfo))) {
-            return false;
-        }
-        if (info->word) {
-            int sz;
-            if(!inf.read(reinterpret_cast<char *>(&sz), sizeof(int))) {
-                return false;
-            }
-            info->word = new char[sz];
-            if(!inf.read(info->word, sz)) {
-                return false;
-            }
-        }
-        if (info->info) {
-            info->info = new FreqInfo();
-            return info->info->read(inf);
-        }
-        return true;
-    }
-    inline bool writeinfo(ofstream & outf, int id, const WordInfo &info) const
-    {
-        if(!outf.write(reinterpret_cast<char *>(&id), sizeof(int))) {
-            return false;
-        }
-        if(!outf.write(reinterpret_cast<char *>(const_cast<WordInfo *>(&info)), sizeof(WordInfo))) {
-            return false;
-        }
-        if (info.word) {
-            int sz = Length<char>()(info.word) + 1;
-            if(!outf.write(reinterpret_cast<char *>(&sz), sizeof(int))) {
-                return false;
-            }
-            if(!outf.write(info.word, sz)) {
-                return false;
-            }
-        }
-        if (info.info) {
-            return info.info->write(outf);
-        }
-        return true;
     }
 };
 
