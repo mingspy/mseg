@@ -39,19 +39,27 @@ namespace mingspy
  *     indices:  1, 10, 20
  *     values : 10, 11, 99
  */
+#define NO_MEMPOOL 0
+#define CELL_ON_MEMPOOL 1
+#define HEADER_ON_MEMPOOL 2
+#define ON_MEMPOOL 3
+
 template<typename T>
 class SparseVector
 {
 public:
+    struct Header{
+        unsigned int using_mempool:2;
+        int _size:15;
+        int _cap:15;
+    };
     struct Cell {
         int id;
         T val;
     };
 protected:
-    int _size;
+    Header _header;
     Cell * _cells;
-    mutable T _sum;
-    mutable bool modified;
 
 public:
     explicit SparseVector()
@@ -83,7 +91,7 @@ public:
      */
     inline int getId(int index) const
     {
-        assert(index < _size);
+        assert(index < size());
         return _cells[index].id;
     }
 
@@ -92,25 +100,21 @@ public:
      */
     inline T & getVal(int index) const
     {
-        assert(index < _size);
+        assert(index < size());
         return _cells[index].val;
     }
 
     inline void setVal(int position, const T & val)
     {
-        assert(position < _size);
+        assert(position < size());
         _cells[position].val = val;
-        modified = true;
     }
 
     inline T sum() const
     {
-        if(_sum == 0 || modified) {
-            _sum = (T)0;
-            for(int i = 0; i < _size; i++) {
-                _sum += _cells[i].val;
-            }
-            modified = false;
+        T _sum = (T)0;
+        for(int i = 0; i < size(); i++) {
+            _sum += _cells[i].val;
         }
 
         return _sum;
@@ -118,7 +122,15 @@ public:
 
     inline int size()const
     {
-        return _size;
+        return _header._size;
+    }
+
+    inline int bytes() const{
+        return sizeof(SparseVector) + size() * sizeof(Cell);
+    }
+    inline unsigned int using_mempool() const
+    {
+        return _header.using_mempool;
     }
 
     /**
@@ -134,28 +146,28 @@ public:
     void setAttrVal(int id, const T & value)
     {
         int index = locateId(id);
-
         if ((index >= 0) && (_cells[index].id == id)) {
             _cells[index].val = value;
         } else {
             // need insert a new value after index.
             index ++; // now insert at index.
-            Cell * tmp = reinterpret_cast<Cell *>( malloc((_size + 1)*sizeof(Cell)));
-            if(_size > 0) {
+            Cell * tmp = reinterpret_cast<Cell *>( malloc((size() + 1)*sizeof(Cell)));
+            if(size() > 0) {
                 // move old data before(include) index.
                 memcpy(tmp, _cells, index * sizeof(Cell));
-                if(index  < _size ) {
-                    memcpy(tmp + index + 1, _cells + index,(_size - index) * sizeof(Cell));
+                if(index  < size() ) {
+                    memcpy(tmp + index + 1, _cells + index,(size() - index) * sizeof(Cell));
                 }
-                free(_cells);
+                if (using_mempool()&CELL_ON_MEMPOOL == 0)
+                    free(_cells);
             }
 
             tmp[index].id = id;
             tmp[index].val = value;
             _cells = tmp;
-            _size ++;
+            _header._size ++;
+            _header.using_mempool &= HEADER_ON_MEMPOOL;
         }
-        modified = true;
     }
 
     int addAttrFreq(int id, const T & inc)
@@ -203,39 +215,37 @@ public:
 
     void merge( const SparseVector & refer)
     {
-        if(refer._size == 0) return;
-        if(_size == 0) {
+        if(refer.size() == 0) return;
+        if(size() == 0) {
             copyOf(refer);
             return;
         }
         vector<int> ids;
-        for( int i = 0; i < _size; i++) {
+        for( int i = 0; i < size(); i++) {
             if(_cells[i].val != (T)0 && find(ids.begin(), ids.end(), _cells[i].id) == ids.end()) {
                 ids.push_back(_cells[i].id);
             }
         }
-        for( int i = 0; i < refer._size; i++) {
+        for( int i = 0; i < refer.size(); i++) {
             if(refer._cells[i].val != (T)0 && find(ids.begin(), ids.end(), refer._cells[i].id) == ids.end()) {
                 ids.push_back(refer._cells[i].id);
             }
         }
         sort(ids.begin(), ids.end());
         Cell * tmp = reinterpret_cast<Cell *>(malloc(sizeof(Cell)*ids.size()));
-        _sum = (T)0;
         for(int i = 0; i < ids.size(); i++) {
             tmp[i].id = ids[i];
             tmp[i].val = getAttrValue(tmp[i].id) + refer.getAttrValue(tmp[i].id);
-            _sum += tmp[i].val;
         }
-        free(_cells);
+        if (using_mempool()&CELL_ON_MEMPOOL == 0) free(_cells);
         _cells = tmp;
-        _size = ids.size();
-        modified = false;
+        _header._size = ids.size();
+        _header.using_mempool &= HEADER_ON_MEMPOOL;
     }
 
     friend ostream & operator<< (ostream & out, const SparseVector & ins)
     {
-        out<<"{size:"<<ins._size<<", vals:[";
+        out<<"{size:"<<ins.size()<<", vals:[";
         for(int i = 0; i < ins._size; i++) {
             out<<"("<<ins._cells[i].id<<","<<ins._cells[i].val<<"),";
         }
@@ -243,45 +253,63 @@ public:
         return out;
     }
 
-    bool read(ifstream & inf)
+    static SparseVector * read(ifstream & inf)
     {
-        clear();
-        if (!inf.read(reinterpret_cast<char *>( &_size),sizeof(int))) {
+        SparseVector * sparse = new SparseVector();
+        if (!inf.read(reinterpret_cast<char *>( sparse),sizeof(SparseVector))) {
             return false;
         }
-        if (_size) {
-            _cells = reinterpret_cast<Cell *>(malloc(_size * sizeof(Cell)));
-            if (!inf.read(reinterpret_cast<char *>( _cells), _size * sizeof(Cell))) {
+        if (sparse->size()) {
+            sparse->_cells = reinterpret_cast<Cell *>(malloc(sparse->size() * sizeof(Cell)));
+            if (!inf.read(reinterpret_cast<char *>( sparse->_cells), sparse->size() * sizeof(Cell))) {
+                return false;
+            }
+        }
+        return sparse;
+    }
+
+    static SparseVector * read(char* pool)
+    {
+        SparseVector * sparse =  reinterpret_cast<SparseVector *>(pool);
+        if (sparse->size()) {
+            sparse->_cells = reinterpret_cast<Cell *>(pool + sizeof(SparseVector));
+        }
+        sparse->_header.using_mempool = ON_MEMPOOL;
+        return sparse;
+    }
+
+    static bool write(ofstream & outf, const SparseVector * sparse) 
+    {
+        if (!outf.write(reinterpret_cast<char *> (const_cast<SparseVector *>(sparse)),sizeof(SparseVector))) {
+            return false;
+        }
+        if (sparse->size()) {
+            if (!outf.write(reinterpret_cast<char *>(const_cast<Cell *>(sparse->_cells)), sparse->size() * sizeof(Cell))) {
                 return false;
             }
         }
         return true;
     }
 
-    bool write(ofstream & outf) const
-    {
-        if (!outf.write(reinterpret_cast<char *> (const_cast<int *>(&_size)),sizeof(int))) {
-            return false;
+    static void collect(SparseVector * sp){
+        if (sp->using_mempool() & ON_MEMPOOL == NO_MEMPOOL){
+            delete sp;
+        }else if(sp->using_mempool() & ON_MEMPOOL == HEADER_ON_MEMPOOL){
+            sp->clear();
         }
-        if (_size) {
-            if (!outf.write(reinterpret_cast<char *>(const_cast<Cell *>(_cells)), _size * sizeof(Cell))) {
-                return false;
-            }
-        }
-        return true;
     }
     inline void clear()
     {
-        if (_cells) free(_cells);
+        if (using_mempool()&CELL_ON_MEMPOOL == 0 &&_cells) free(_cells);
         init();
     }
 private:
     inline void init()
     {
-        _size = 0;
+        _header.using_mempool = NO_MEMPOOL;
+        _header._size = 0;
+        _header._cap = 0;
         _cells = NULL;
-        _sum = (T)0;
-        modified = false;
     }
     /**
      * Locates the greatest index that is not greater than the given index.
@@ -289,13 +317,13 @@ private:
      */
     int locateId(int id) const
     {
-        int min = 0, max = _size - 1;
+        int min = 0, max = size() - 1;
         if (max == -1) {
             return -1;
         }
 
         // Binary search
-        while ((_cells[min].id <= id) && (_cells[max].id >= id)) {
+        while (min<=max&&(_cells[min].id <= id) && (_cells[max].id >= id)) {
             int current = (max + min) / 2;
             if (_cells[current].id > id) {
                 max = current - 1;
@@ -315,7 +343,7 @@ private:
     void copyOf(const SparseVector & refer)
     {
         int num = 0;
-        for(int i = 0; i < refer._size; i++) {
+        for(int i = 0; i < refer.size(); i++) {
             if(refer._cells[i].val != (T)0) {
                 num ++;
             }
@@ -324,7 +352,7 @@ private:
         if(num > 0) {
             tmp = reinterpret_cast<Cell *>(malloc(num * sizeof(Cell)));
             int k = 0;
-            for(int i = 0; i < refer._size; i++) {
+            for(int i = 0; i < refer.size(); i++) {
                 if(refer._cells[i].val != (T)0) {
                     tmp[k] = refer._cells[i];
                     k++;
@@ -332,13 +360,12 @@ private:
             }
         }
 
-        if (_cells) {
+        if (using_mempool()&CELL_ON_MEMPOOL == 0&&_cells) {
             free(_cells);
         }
         _cells = tmp;
-        _sum = refer._sum;
-        modified = refer.modified;
-        _size = num;
+        _header._size = num;
+        _header.using_mempool &= HEADER_ON_MEMPOOL;
     }
 
 };

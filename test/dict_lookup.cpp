@@ -2,6 +2,7 @@
 #include "dict.hpp"
 #include <string>
 #include <string.h>
+#include "utils.hpp"
 
 using namespace std;
 using namespace mingspy;
@@ -12,8 +13,10 @@ int main(int argc, char * argv[]){
         return -1;
     }
    
+    Timer t;
     Dictionary dict;
     dict.open(argv[1]);
+    cout<<t<<endl;
     string input;
     cout<<"Enter the word to query, enter \'exit\' to exit"<<endl;
     while(true){

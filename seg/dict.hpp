@@ -357,11 +357,9 @@ public:
                 p[i].word = str+sizeof(int);
                 str += (*((int*)(str)))+sizeof(int);
             }
-        }
-        for (int i = 0; i < sz; i++) {
             if(p[i].info){
-                p[i].info = new FreqInfo();
-                p[i].info->read(inf);
+                p[i].info = FreqInfo::read(str);
+                str += p[i].info->bytes();
             }
         }
         return datrie.read(inf);
@@ -409,6 +407,9 @@ public:
                 int sz = Length<char>()(it->second->word) + 1;
                 total_bytes += sz + sizeof(int);
             }
+            if (it->second->info) {
+                total_bytes+=it->second->info->bytes();
+            }
         }
         if(!outf.write(reinterpret_cast<char *>(&total_bytes), sizeof(int))) {
             return false;
@@ -423,13 +424,11 @@ public:
                     return false;
                 }
             }
-        }
-        // write info
-        for (CWIT it = words_info_table.begin(); it != words_info_table.end(); it++) {
             if (it->second->info) {
-                it->second->info->write(outf);
+                FreqInfo::write(outf,it->second->info);
             }
         }
+        // write info
         return datrie.write(outf);
     }
 private:
@@ -438,8 +437,8 @@ private:
     {
         for (WIT it = words_info_table.begin(); it != words_info_table.end(); it++) {
             WordInfo *info = it->second;
-            if (info->info) {
-                delete  info->info;
+            if (info->info){
+                FreqInfo::collect(info->info);
             }
         }
         words_info_table.clear();

@@ -6,7 +6,8 @@ INCLUDE=-I../util
 CC= g++ $(INCLUDE) -O3 
 #CC=g++ -DDEBUG -g 
 
-all:builder libmseg.so
+#all:builder libmseg.so
+all:builder
 .PHONY:all
 
 builder:builder.hpp builder.cpp dict.hpp

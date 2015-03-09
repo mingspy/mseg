@@ -33,15 +33,15 @@ private:
                 vector<string > result;
                 for(int i = 0; i < vec.size(); i++) {
                     PeopleEntity & ent = vec[i];
-                    if (ent.isCompose) {
-                        for(int j = 0; j < ent.sub.size(); j++) {
-                            test_str+=ent.sub[j].word;
-                            result.push_back(ent.sub[j].word);
-                        }
-                    } else {
+                    //if (ent.isCompose) {
+                    //    for(int j = 0; j < ent.sub.size(); j++) {
+                    //        test_str+=ent.sub[j].word;
+                    //        result.push_back(ent.sub[j].word);
+                    //    }
+                    //} else {
                         test_str+=ent.word;
                         result.push_back(ent.word);
-                    }
+                    //}
                 }
                 est_data.push_back(test_str);
                 est_refer.push_back(result);

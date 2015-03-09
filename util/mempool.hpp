@@ -322,7 +322,7 @@ public:
     }
 
     void setDynamicIncreament(std::size_t sz){
-        m_dynamicSize = size;
+        m_dynamicSize = sz;
     }
 private:
 

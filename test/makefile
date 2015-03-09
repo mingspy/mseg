@@ -4,8 +4,8 @@ INCLUDE=-I../seg/ -I../util/
 LIB=-lmseg
 #CC=g++ -O3 $(INCLUDE) $(LIB) $(LIBDIR)
 #CC=g++ -DNSHORTPATH -O3 $(INCLUDE) 
-#CC=g++ -DBREAKDOWN $(INCLUDE) -O3
-CC=g++ -DDEBUG -g $(INCLUDE)
+CC=g++ -DBREAKDOWN $(INCLUDE) -O3
+#CC=g++ -DDEBUG -g $(INCLUDE)
 
 all:uda useg lookup
 .PHONY:all
