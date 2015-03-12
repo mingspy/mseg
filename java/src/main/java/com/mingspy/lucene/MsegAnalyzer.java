@@ -35,7 +35,7 @@ public class MsegAnalyzer extends Analyzer
 	protected TokenStreamComponents createComponents(String fieldName,
 			Reader reader) {
 		MsegTokenizer tokenizer = new MsegTokenizer(reader);
-		String method = this.settings.get("method","FORWARD").trim();
+		String method = this.settings.get("method","FULL").trim();
 		tokenizer.setSplitMethod(method);
 		return new TokenStreamComponents(tokenizer);
 	}

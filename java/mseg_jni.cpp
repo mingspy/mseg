@@ -170,11 +170,11 @@ jobject JNI_ConfigSet
  */
 jobject JNI_ConfigInit
 (JNIEnv * env, jobject obj, jstring jstr){
-    cerr<<"cpp ->ConfigInit start"<<endl;
+    cerr<<"cpp ->ConfigInit() start"<<endl;
     const char * p = env->GetStringUTFChars(jstr, 0);
     mseg_config_init(p);
     env->ReleaseStringUTFChars(jstr, p);
-    cerr<<"cpp ->ConfigInit end"<<endl;
+    cerr<<"cpp ->ConfigInit() end"<<endl;
     //return 0;
     Token result[1];
     return toJavaTokenList(env,"success",result, 1);

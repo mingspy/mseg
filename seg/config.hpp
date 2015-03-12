@@ -27,8 +27,8 @@ using namespace std;
 namespace mingspy
 {
 
-static const string DEFAULT_CONF_PATH = "/data0/xiulei/mseg/mseg.conf";
-static const string DEFAULT_DICT_ROOT = "/data0/xiulei/mseg/";
+static const string DEFAULT_CONF_PATH = "/data0/home/xiulei/mseg/dict/mseg.conf";
+static const string DEFAULT_DICT_ROOT = "/data0/home/xiulei/mseg/dict/";
 static const string DEFAULT_CORE_DICT_NAME = "core.dic";
 static const string DEFAULT_PERSON_DICT_NAME = "person.dic";
 static const string DEFAULT_INVS_DICT_NAME = "inverse.dic";
@@ -102,6 +102,7 @@ public:
 
     void set(const string & key, const string & val)
     {
+        cerr<<__DATE__<<" "<<__TIME__<<"|" <<__FILE__<<":"<<__LINE__<<" "<<__func__<< " set->" <<key.c_str()<<"="<< val.c_str()<<endl;
         _confs[key] = val;
     }
 
@@ -113,11 +114,17 @@ public:
     Config(const string & config_path)
     {
         loadSettings();
-        loadSettingsFromConf(config_path);
+        if (config_path != _confs[KEY_CONF_PATH])
+            loadSettingsFromConf(config_path);
     }
 
     void loadSettingsFromConf(const string & path)
     {
+        cerr<<__DATE__<<" "<<__TIME__<<"|" <<__FILE__<<":"<<__LINE__<<" "<<__func__<< " start"<<endl;
+        if(!fileExist(path.c_str())){
+            cerr<<"path not exist"<<path.c_str()<<endl;
+            return;
+        }
         _confs[KEY_CONF_PATH] = path;
         LineFileReader reader(path);
         string * line = NULL;
@@ -129,6 +136,7 @@ public:
             if(idx != string::npos) {
                 string key = trim(line->substr(0, idx));
                 string val = trim(line->substr(idx+1));
+                cout<<"\t\tloaded "<<key.c_str()<<"="<<val.c_str()<<endl;
                 _confs[key] = val;
             }
         }
@@ -137,7 +145,8 @@ public:
 private:
     void loadSettings()
     {
-        _confs[KEY_CONF_PATH] = DEFAULT_CONF_PATH;
+        cerr<<__DATE__<<" "<<__TIME__<<"|" <<__FILE__<<":"<<__LINE__<<" "<<__func__<< " start --------------"<<endl;
+        //_confs[KEY_CONF_PATH] = DEFAULT_CONF_PATH;
         _confs[KEY_DICT_ROOT] = DEFAULT_DICT_ROOT;
         _confs[KEY_CORE_NAME] = DEFAULT_CORE_DICT_NAME;
         _confs[KEY_PERSON_NAME] = DEFAULT_PERSON_DICT_NAME;
@@ -146,8 +155,18 @@ private:
         _confs[KEY_USER_DICT_DIR] = DEFAULT_USER_DICT_DIR;
         char * pconf = getenv(ENV_MSEG_CONF_PATH.c_str());
         if(pconf != NULL) {
-            _confs[KEY_CONF_PATH] = pconf;
+            cerr<<"Got environment MSEG_CONF_PATH="<<pconf;
+            if(fileExist(pconf)){
+                cerr<<" and now loading config file."<<endl;
+                loadSettingsFromConf(pconf);
+            }else{
+                cerr<<" but config file not accessable."<<endl;
+            }
+        }else{
+            cerr<<"Not Got environment MSEG_CONF_PATH, not load from DEFAULT_CONF_PATH"<<DEFAULT_CONF_PATH.c_str()<<endl;
+            loadSettingsFromConf(DEFAULT_CONF_PATH);
         }
+        cerr<<__DATE__<<" "<<__TIME__<<"|" <<__FILE__<<":"<<__LINE__<<" "<<__func__<< " end --------------"<<endl;
     }
 
     map<string, string> _confs;

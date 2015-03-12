@@ -70,23 +70,31 @@ static void mseg_load_user_dict(Dictionary & dict, const string & file, bool is_
 
 
 void mseg_config_init(const char * config_path){
+    cerr<<__DATE__<<" "<<__TIME__<<"|" <<__FILE__<<":"<<__LINE__<<" "<<__func__<< " start --------------"<<endl;
     Config::instance().loadSettingsFromConf(config_path);
+    cerr<<__DATE__<<" "<<__TIME__<<"|" <<__FILE__<<":"<<__LINE__<<" "<<__func__<< " end --------------"<<endl <<endl;
 }
 
 void mseg_config_set(const char * key, const char * val){
+    cerr<<__DATE__<<" "<<__TIME__<<"|" <<__FILE__<<":"<<__LINE__<<" "<<__func__<< " start --------------"<<endl;
     Config::instance().set(key,val);
+    cerr<<__DATE__<<" "<<__TIME__<<"|" <<__FILE__<<":"<<__LINE__<<" "<<__func__<< " end --------------"<<endl <<endl;
 }
 
 void mseg_init(){
+    cerr<<__DATE__<<" "<<__TIME__<<"|" <<__FILE__<<":"<<__LINE__<<" "<<__func__<< " start --------------"<<endl;
     Config & config = Config::instance();
     string dictRoot = config.getStr(KEY_DICT_ROOT);
+    cerr<<"get DICT_ROOT="<<dictRoot.c_str()<<endl;
     if (!fileExist(dictRoot.c_str())){
+        cerr<<"error: DICT_ROOT not accessable:"<<dictRoot.c_str()<<endl;
         throw "dictionary dir of mseg not accessable.";
     }
 
     string core_dict_path = combinPath(dictRoot,config.getStr(KEY_CORE_NAME));
     cout<<"core dict path is:"<<core_dict_path<<endl;
     if (!fileExist(core_dict_path.c_str())){
+        cerr<<"error: core dict not accessable:"<<core_dict_path.c_str()<<endl;
         throw "core dict not accessable";
     }
 
@@ -95,6 +103,7 @@ void mseg_init(){
         string invs_dict_path = combinPath(dictRoot,config.getStr(KEY_INVS_NAME));
         cout<<"inverse dict path is:"<<invs_dict_path<<endl;
         if (!fileExist(invs_dict_path.c_str())){
+            cerr<<"error: inverse dict not accessable:"<<invs_dict_path.c_str()<<endl;
             throw "inverse dict not accessable";
         }
         inverse_dict.open(invs_dict_path);
@@ -121,6 +130,7 @@ void mseg_init(){
 	paoding.setDict(&core_dict);
 	unigram.setDict(&core_dict);
     renda.setDict(&inverse_dict);
+    cerr<<__DATE__<<" "<<__TIME__<<"|" <<__FILE__<<":"<<__LINE__<<" "<<__func__<< " end --------------"<<endl <<endl;
 }
 
 int mseg_forward_split(const char * str, struct Token * result, int result_len){

@@ -143,7 +143,7 @@ public:
      *          nominal (or a string) then this is the new value's index as a
      *          double).
      */
-    void setAttrVal(int id, const T & value)
+    void setValById(int id, const T & value)
     {
         int index = locateId(id);
         if ((index >= 0) && (_cells[index].id == id)) {
@@ -172,8 +172,8 @@ public:
 
     int addAttrFreq(int id, const T & inc)
     {
-        T s = getAttrValue(id) + inc;
-        setAttrVal(id, s);
+        T s = getValById(id) + inc;
+        setValById(id, s);
         return s;
     }
     /**
@@ -184,7 +184,7 @@ public:
      *         nominal (or a string) then it returns the value's index as a
      *         double).
      */
-    inline T getAttrValue(int id) const
+    inline T getValById(int id) const
     {
         int index = locateId(id);
         if ((index >= 0) && (_cells[index].id == id)) {
@@ -235,7 +235,7 @@ public:
         Cell * tmp = reinterpret_cast<Cell *>(malloc(sizeof(Cell)*ids.size()));
         for(int i = 0; i < ids.size(); i++) {
             tmp[i].id = ids[i];
-            tmp[i].val = getAttrValue(tmp[i].id) + refer.getAttrValue(tmp[i].id);
+            tmp[i].val = getValById(tmp[i].id) + refer.getValById(tmp[i].id);
         }
         if (using_mempool()&CELL_ON_MEMPOOL == 0) free(_cells);
         _cells = tmp;
@@ -370,12 +370,350 @@ private:
 
 };
 
+template<typename T>
+class SparseList
+{
+public:
+    struct Header{
+        unsigned int using_mempool:2;
+        int _size:15;
+        int _cap:15;
+    };
+    struct Cell {
+        int id;
+        T val;
+        struct Cell * prev;
+        struct Cell * next;
+        Cell():id(0),val(0),prev(0),next(0){}
+    };
+
+    class iterator{
+        Cell * cur;
+    public:
+        iterator(Cell * ptr):cur(ptr){}
+        Cell * next(){
+            return cur->next;
+        }
+        Cell * operator->(){
+            return cur;
+        }
+        void operator++(){
+            cur = cur->next;
+        }
+        void operator++(int){
+            cur = cur->next;
+        }
+        bool operator == (const iterator & refer){
+            return this->cur == refer.cur;
+        }
+        bool operator != (const iterator & refer){
+            return this->cur != refer.cur;
+        }
+        static const iterator & empty(){
+            static const iterator EMPTY(NULL);
+            return EMPTY;
+        }
+    };
+protected:
+    Header _header;
+    Cell * _first;
+    Cell * _last;
+
+public:
+    explicit SparseList()
+    {
+        init();
+    }
+
+    ~SparseList()
+    {
+    }
+
+    SparseList(const SparseList & refer)
+    {
+        init();
+        copyOf(refer);
+    }
+
+    SparseList & operator=(const SparseList & refer)
+    {
+        if(&refer != this) {
+            copyOf(refer);
+        }
+        return *this;
+    }
+    iterator begin() const{
+        return iterator(_first);
+    }
+    const iterator & end(){
+        return iterator::empty();
+    }
+    /**
+     * Returns the id of the attribute stored at the given position.
+     * @param position the position
+    inline int getId(int index) const
+    {
+        assert(index < size());
+        Cell * cur = _first;
+        for ( int i = 0; i < index && cur; i++){
+            cur = cur->next;
+        }
+        return cur->id;
+    }
+     */
+
+    /*
+     * index is the direct index of cell.
+    inline T & getVal(int index) const
+    {
+        assert(index < size());
+        Cell * cur = _first;
+        for ( int i = 0; i < index && cur; i++){
+            cur = cur->next;
+        }
+        return cur->val;
+    }
+
+    inline void setVal(int index, const T & val)
+    {
+        assert(index < size());
+        Cell * cur = _first;
+        for ( int i = 0; i < index && cur; i++){
+            cur = cur->next;
+        }
+        cur->val = val;
+    }
+
+    */
+    inline T sum() const
+    {
+        T _sum = (T)0;
+        const Cell * cur = _first;
+        for(; cur; cur = cur->next) {
+            _sum += cur->val;
+        }
+
+        return _sum;
+    }
+
+    inline int size()const
+    {
+        return _header._size;
+    }
+
+    /**
+     * Sets a specific value in the instance to the given value (internal
+     * floating-point format). Performs a deep copy of the vector of attribute
+     * values before the value is set.
+     *
+     * @param attIndex the attribute's index
+     * @param value the new attribute value (If the corresponding attribute is
+     *          nominal (or a string) then this is the new value's index as a
+     *          double).
+     */
+    void setValById(int id, const T & value)
+    {
+        Cell * prev, *next;
+        Cell * tmp = find_cell(id, &prev, &next);
+        if (tmp){
+            tmp->val = value;
+            return;
+        }
+
+        tmp = new Cell();
+        tmp->id = id;
+        tmp->val = value;
+        tmp->next = next;
+        tmp->prev = prev;
+        _header._size ++;
+
+        if (prev){
+            prev->next = tmp;
+        }else{
+            _first = tmp;
+        }
+
+        if(next){
+            next->prev = tmp;
+        }else{
+            _last = tmp;
+        }
+
+    }
+
+    int addAttrFreq(int id, const T & inc)
+    {
+        T s = getValById(id) + inc;
+        setValById(id, s);
+        return s;
+    }
+    /**
+     * Returns an instance's attribute value in internal format.
+     *
+     * @param attIndex the attribute's index
+     * @return the specified value as a double (If the corresponding attribute is
+     *         nominal (or a string) then it returns the value's index as a
+     *         double).
+     */
+    inline T getValById(int id) const
+    {
+        Cell * cur = _first;
+        for ( ;cur && cur->id < id; cur = cur->next){
+        }
+        if (cur && cur->id == id){
+            return cur->val;
+        }
+        return 0;
+    }
+
+    /**
+     * Remove the attribute at given attribute index. Here only mark the attribute
+     * as the default value (0).
+     *
+     * @param attIndex the attribute' index
+     * @return the specified value as a double (If the corresponding attribute is
+     *         nominal (or a string) then it returns the value's index as a
+     *         double).
+     */
+    T removeAttr(int id)
+    {
+        T old_value = 0;
+        Cell * cur, * prev, *next;
+        cur = find_cell(id,prev,next);
+        if(cur){
+            old_value = cur->val;
+            if(prev){
+                prev->next = next;
+            }else{
+                _first = next;
+            }
+            if(next){
+                next->prev = prev;
+            }else{
+                _last = prev;
+            }
+            _header._size --;
+            delete cur;
+        }
+        return old_value;
+    }
+
+    void merge( const SparseList & refer)
+    {
+        Cell * cur = _first;
+        Cell * prev = NULL;
+        Cell * refer_cur = refer._first;
+        while(cur && refer_cur){
+            if(cur->id == refer_cur->id){
+                cur->val += refer_cur->val;
+                prev = cur;
+                cur = cur->next;
+                refer_cur = refer_cur->next;
+            }else if (cur->id < refer_cur->id){
+                prev = cur;
+                cur = cur->next;
+            }else{
+                Cell * tmp = new Cell();
+                tmp->id = refer_cur->id;
+                tmp->val = refer_cur->val;
+                tmp->next = cur;
+                tmp->prev = prev;
+                cur->prev = tmp;
+                if(!prev){
+                    _first = tmp;
+                }else{
+                    prev->next = tmp;
+                }
+                prev = tmp;
+                refer_cur = refer_cur->next;
+                _header._size ++;
+            }
+        }
+        while(refer_cur){
+                Cell * tmp = new Cell();
+                tmp->id = refer_cur->id;
+                tmp->val = refer_cur->val;
+                tmp->prev = prev;
+                if(!prev){
+                    _first = tmp;
+                } else{
+                    prev->next = tmp;
+                }
+                prev = tmp;
+                refer_cur = refer_cur->next;
+                _header._size ++;
+                _last = prev;
+        }
+    }
+
+    friend ostream & operator<< (ostream & out, const SparseList & ins)
+    {
+        out<<"{size:"<<ins.size()<<", vals:[";
+        const Cell * cur = ins._first;
+        while(cur){
+            out<<"("<<cur->id<<","<<cur->val<<"),";
+            cur = cur->next;
+        }
+        out<<"]}";
+        return out;
+    }
+
+private:
+    inline Cell * find_cell(int id, Cell **prev, Cell **next) const{
+        Cell * cur = _first; 
+        *prev = NULL;
+        *next = NULL;
+        while(cur && cur->id < id){
+            *prev = cur;
+            cur = cur->next;
+        }
+        if (cur && cur->id == id){
+            *next = cur->next;
+            return cur;
+        }
+
+        return NULL;
+    }
+    inline void init()
+    {
+        _header.using_mempool = NO_MEMPOOL;
+        _header._size = 0;
+        _header._cap = 0;
+        _first = NULL;
+        _last = NULL;
+    }
+
+    void clear(){
+        while(_first){
+            _last = _first->next;
+            delete _first;
+            _first = _last;
+        }
+    }
+    void copyOf(const SparseList & refer)
+    {
+        const Cell * cur = refer._first;
+        Cell * prev = NULL;
+        while(cur){
+            Cell * tmp = new Cell(*cur);
+            tmp->prev = prev;
+            if(prev) prev->next = tmp;
+            else _first = tmp;
+            prev = tmp;
+            cur = cur->next;
+        }
+        _header = refer._header;
+    }
+
+};
+
+
 template<class T>
 class Matrix
 {
-    mutable map<int, SparseVector<T> > _matrixs;
+    mutable map<int, SparseList<T> > _matrixs;
 public:
-    inline SparseVector<T> & operator[](int row) const
+    inline SparseList<T> & operator[](int row) const
     {
         return _matrixs[row];
     }
@@ -385,7 +723,7 @@ public:
     }
     inline void set(int row,int col, T & val) const
     {
-        return _matrixs[row].setAttrVal(col,val);
+        return _matrixs[row].setValById(col,val);
     }
 };
 

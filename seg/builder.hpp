@@ -264,7 +264,8 @@ public:
 
         int line_count = 0;
         while((line = reader.getLine()) != NULL) {
-            add(*line,type);
+            if (type !=  "UDF" || dict.getWordId(*line) > -1 )
+                add(*line,type);
             if(++line_count%100 == 0) {
                 cout<<"\rparsed lines -> "<<line_count;
             }

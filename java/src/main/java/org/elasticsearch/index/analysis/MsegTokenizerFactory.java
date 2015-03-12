@@ -38,7 +38,7 @@ public class MsegTokenizerFactory extends AbstractTokenizerFactory {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		String method = this.settings.get("method","FORWARD").trim();
+		String method = this.settings.get("method","FULL").trim();
 		MsegTokenizer tokenizer = new MsegTokenizer(reader);
 		tokenizer.setSplitMethod(method);
 		return tokenizer;

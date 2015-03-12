@@ -117,24 +117,24 @@ double viterbi( const Dictionary & dict, const vector<const SparseVector<int> *>
         Token * tokenArr, int arrLen)
 {
     int T = Observs.size();
-    Matrix<double> delta;
-    Matrix<int> psi;
+    Matrix<double> delta; // 到达此节点的路径值
+    Matrix<int> psi; //  到达此节点的最佳状态
 
     // 1. Initialize.
+    // 设置第一个节点路径值为emit value
     double nature_total = dict.getWordFreq(POS_FREQ_TOTAL);
     for(int i = 0; i< Observs[0]->size(); i++) {
         double emitp = -log((Observs[0]->getVal(i) + 1.0)/ (nature_total + 10.0));
-        delta[0].setAttrVal(Observs[0]->getId(i), emitp);
+        delta[0].setValById(Observs[0]->getId(i), emitp);
     }
 
     // 2. Induction.
     // Get the best path from ti-1 -> ti;
     // In HMM: delta[t][j] = Max(delta[t-1][i]*a[i][j])*b[j][Obs[t]]
     //    or  delta[t][j] = Min{-[log[delta[t-1][i]+log(a[i][j])+log(b[j][Obs[t])]}
-    int index = 0;
+    int best_state = 0;
     double minProb = PROB_INFINT;
     double proba = 0;
-
     for ( int t = 1; t < T; t++ ) {
         // Calculate each roles best delta from previous to current.
         for ( int j = 0; j < Observs[t]->size(); j++ ) {
@@ -145,49 +145,41 @@ double viterbi( const Dictionary & dict, const vector<const SparseVector<int> *>
                 int state_pre = Observs[t - 1]->getId(i);
                 proba = -log((dict.getAttrFreq(state_pre, state_cur) + 1.0)/(dict.getWordFreq(state_pre)+10.0));
                 // Add delta[t-1][i].
-                proba += delta[t - 1].getVal(i);
+                proba += delta[t - 1].getValById(state_pre);
                 if ( proba < minProb ) {
-                    index = i;
+                    best_state = state_pre;
                     minProb = proba;
                 }
             }
-            psi[ t ].setAttrVal(j,index);
-
+            psi[ t ].setValById(state_cur,best_state);
             double emitProb = -log((Observs[t]->getVal(j) + 1.0)/ (dict.getWordFreq(state_cur) + 10.0));
-            assert(emitProb >= 0);
-            delta[ t ].setAttrVal(j, minProb + emitProb);
+            delta[ t ].setValById(state_cur, minProb + emitProb);
         }
     }
 
     // 3.Terminal.
     // Record the best role tag's index.
-    //bestPos.setAttrVal(T, -1);
+    //bestPos.setValById(T, -1);
     minProb = PROB_INFINT;
-    index = 0;
-    SparseVector<double> & lastDelta = delta[T - 1];
-    for ( int i = 0; i < lastDelta.size(); i++ ) {
-        if ( lastDelta.getVal(i) < minProb ) {
-            index = i;
-            minProb = lastDelta.getVal(i);
+    best_state = 0;
+    SparseList<double> & lastDelta = delta[T - 1];
+    for ( SparseList<double>::iterator it = lastDelta.begin(); it !=  lastDelta.end(); it++ ) {
+        if ( it->val < minProb ) {
+            best_state = it->id;
+            minProb = it->val;
         }
     }
 
 
     // Get best path.
     //bestPos.push_back(index);
-    tokenArr[T-1].pos = index;
+    tokenArr[T-1].pos = best_state;
     for ( int t = T - 1; t > 0; t-- ) {
         //bestPos.push_back(psi[t].getVal(bestPos[T- 1 - t]));
-        index = psi[t].getVal(index);
-        tokenArr[t-1].pos = index;
+        best_state = psi[t].getValById(best_state);
+        tokenArr[t-1].pos = best_state;
     }
 
-    //reverse(bestPos.begin(),bestPos.end());
-    // Get best pose.
-    for ( int t = 0; t < T; t++ ) {
-        //bestPos[i] = Observs[i]->getId(bestPos[i]);
-        tokenArr[t].pos = Observs[t]->getId(tokenArr[t].pos);
-    }
     assert(minProb >=0);
     return minProb;
 }
@@ -491,7 +483,7 @@ protected:
         }
 
         for(int i = 0; i < freqs.size(); i++) {
-            _possible_info.setAttrVal(_dict->getWordId(_possible_natures[i]), freqs[i] * 1000/sum);
+            _possible_info.setValById(_dict->getWordId(_possible_natures[i]), freqs[i] * 1000/sum);
         }
     }
 public:
@@ -554,10 +546,10 @@ public:
     }
 protected:
     virtual void genPossibleInfo() const {
-        _possible_info.setAttrVal(_dict->getWordId("O"), _dict->getWordFreq("O") + 1);
-        _possible_info.setAttrVal(_dict->getWordId("D"), _dict->getWordFreq("D") + 1);
-        _possible_info.setAttrVal(_dict->getWordId("C"), _dict->getWordFreq("C") + 1);
-        _possible_info.setAttrVal(_dict->getWordId("S"), _dict->getWordFreq("S") + 1);
+        _possible_info.setValById(_dict->getWordId("O"), _dict->getWordFreq("O") + 1);
+        _possible_info.setValById(_dict->getWordId("D"), _dict->getWordFreq("D") + 1);
+        _possible_info.setValById(_dict->getWordId("C"), _dict->getWordFreq("C") + 1);
+        _possible_info.setValById(_dict->getWordId("S"), _dict->getWordFreq("S") + 1);
     }
 };
 

@@ -286,6 +286,10 @@ private:
 public:
     LineFileReader(const string & file)
     {
+        if(!fileExist(file.c_str())){
+            cerr<<"error: "<<__FILE__<<":"<<__LINE__<<" "<<__func__<< "| "
+                <<file.c_str()<<"not exist!"<<endl;
+        }
         inf.open(file.c_str());
     }
     ~LineFileReader()

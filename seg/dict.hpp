@@ -253,7 +253,7 @@ public:
     {
         const FreqInfo * info = getFreqInfo(wordId);
         if(info){
-            return info->getAttrValue(attrId);
+            return info->getValById(attrId);
         }
         return 0;
     }
