@@ -88,7 +88,8 @@ void testGenGraph(const Dictionary * core_dict)
     double size = speedstr.length();
     Graph g;
     for(int i = 0; i < 1024; i ++) {
-        genWordGraph(*core_dict, speedstr,0,size,g);
+        g.gen(*core_dict, speedstr,0,size);
+        g.clear();
     }
     cout<<"speed is "<<size/t.elapsed()/1024<<endl;
 }
@@ -99,12 +100,13 @@ void testNShortPath(const Dictionary * core_dict)
     Timer t;
     double size = speedstr.length();
 	Token result[10000];
+    Graph g;
     for(int i = 0; i < 1024; i ++) {
-        Graph g;
-        genWordGraph(*core_dict, speedstr,0,size,g);
+        g.gen(*core_dict, speedstr,0,size);
         NShortPath npath(g,10);
         npath.calc();
         npath.getBestPath(0,result);
+        g.clear();
     }
     cout<<"speed is "<<size/t.elapsed()/1024<<endl;
 }
@@ -114,11 +116,12 @@ void testShortPath(const Dictionary * core_dict)
     Timer t;
     double size = speedstr.length();
 	Token result[10000];
+    Graph g;
     for(int i = 0; i < 1024; i ++) {
-        Graph g;
-        genWordGraph(*core_dict, speedstr,0,size,g);
+        g.gen(*core_dict, speedstr,0,size);
         ShortPath path(g);
         path.getBestPath(result);
+        g.clear();
     }
     cout<<"speed is "<<size/t.elapsed()/1024<<endl;
 }
@@ -132,7 +135,7 @@ void test_metrics(const Dictionary * core_dict, const Dictionary * inverse_dict)
 {
     testGenGraph(core_dict);
     testNShortPath(core_dict);
-    //testShortPath(core_dict);
+    testShortPath(core_dict);
     testSegs(core_dict, inverse_dict);
     testTagger(core_dict);
 }

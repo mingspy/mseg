@@ -501,6 +501,14 @@ public:
         return _header._size;
     }
 
+    inline Cell & operator[](int index){
+        Cell * cur = _first;
+        for ( int i = 0; i < index && cur; i++){
+            cur = cur->next;
+        }
+        return *cur;
+    }
+
     /**
      * Sets a specific value in the instance to the given value (internal
      * floating-point format). Performs a deep copy of the vector of attribute
@@ -725,6 +733,9 @@ public:
     {
         return _matrixs[row].setValById(col,val);
     }
+
+    void clear(){return _matrixs.clear();}
+     map<int, SparseList<T> > & getMeta(){return _matrixs;}
 };
 
 }

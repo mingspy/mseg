@@ -184,70 +184,30 @@ double viterbi( const Dictionary & dict, const vector<const SparseVector<int> *>
     return minProb;
 }
 
-struct Vetex {
-    int id;
-    double val;
-    Vetex(int vid = 0, double v = 0):id(vid),val(v) {}
-};
-
 class Graph
 {
 private:
     // 保存每个字的下标位置
     vector<int> offs;
-    vector<vector<Vetex> > rows;
-    void ensureRow(int row)
-    {
-        while(rows.size() <= row) {
-            rows.push_back(vector<Vetex>());
-        }
-    }
+    Matrix<double> rows;
 public:
-    inline void push(int off)
-    {
-        offs.push_back(off);
-    }
-    inline int get(int id)
-    {
-        return offs[id];
-    }
-    inline int size()
-    {
-        return offs.size();
-    }
+    inline void push(int off) { offs.push_back(off); }
+    inline int get(int id) const { return offs[id]; }
+    inline int size() const { return offs.size(); }
     inline void setVetex(int row, int col, double val)
     {
-        ensureRow(row);
-        vector<Vetex> & r = rows[row];
-        int N = r.size();
-        for (int i = 0; i < N; i++) {
-            if(r[i].id == col) {
-                r[i].val = val;
-                return;
-            }
-        }
-        r.push_back(Vetex(col,val));
+        SparseList<double> & r = rows[row];
+        r.setValById(col,val);
     }
 
-    inline vector<Vetex> & getVetexs(int row)
-    {
-        assert(row < rows.size());
-        return rows[row];
-    }
-
-    inline vector<Vetex> & operator[](int row)
-    {
-        assert(row < rows.size());
-        return rows[row];
-    }
-
+    inline SparseList<double> & getVetexs(int row) { return rows[row]; }
+    inline SparseList<double> & operator[](int row) { return rows[row]; }
     void calcLogProb(double totalFreq)
     {
-        const int R = rows.size();
-        for (int i = 0; i < R; i ++) {
-            const int C = rows[i].size();
-            for(int j = 0; j < C; j++) {
-                rows[i][j].val = -log((rows[i][j].val + 1.0)/totalFreq);
+        for( map<int,SparseList<double> >::iterator i = rows.getMeta().begin(); i != rows.getMeta().end(); i ++){
+            SparseList<double> & sparse  = i->second;
+            for ( SparseList<double>::iterator it = sparse.begin(); it !=  sparse.end(); it++ ) {
+                it->val = -log((it->val + 1.0)/(totalFreq+1.0));
             }
         }
     }
@@ -255,9 +215,7 @@ public:
     inline void clear()
     {
         offs.clear();
-        for(int i = 0; i < rows.size(); i++) {
-            rows[i].clear();
-        }
+        rows.clear();
     }
     void print()
     {
@@ -268,56 +226,56 @@ public:
         }
         cout<<endl;
         cout<<"rows->"<<endl;
-        for(int i = 0; i < rows.size(); i++) {
-            cout<<"\t"<<i<<":";
-            for(int j = 0; j < rows[i].size(); j++) {
-                cout<<"("<<rows[i][j].id<<","<<rows[i][j].val<<")";
+        for( map<int,SparseList<double> >::iterator i = rows.getMeta().begin(); i != rows.getMeta().end(); i ++){
+            cout<<i->first<<":";
+            SparseList<double> & sparse  = i->second;
+            for ( SparseList<double>::iterator it = sparse.begin(); it !=  sparse.end(); it++ ) {
+                cout<<"("<<it->id<<","<<it->val<<")";
             }
-            cout<<endl;
         }
         cout<<endl;
         cout<<"----------------------------------------------"<<endl;
     }
-};
 
-void genWordGraph(const Dictionary & dict,const string &strUtf8,int start, int endoff, Graph & graph)
-{
-    // 1. push all sigle atom word into graph
-    graph.clear();
-    vector<int> atom_offs;
-    int row = 0;
-    graph.push(start);
-    for(int i = start; i < endoff; ) {
-        int next = utf8_next_estr(strUtf8,i);
-        int tp = TYPE_ESTR;
-        if (next <= i) {
-            tp = TYPE_ATOM;
-            next  = i + utf8_char_len(strUtf8[i]);
+    void gen(const Dictionary & dict,const string &strUtf8,int start, int endoff)
+    {
+        // 1. push all sigle atom word into graph
+        vector<int> atom_offs;
+        int row = 0;
+        push(start);
+        for(int i = start; i < endoff; ) {
+            int next = utf8_next_estr(strUtf8,i);
+            int tp = TYPE_ESTR;
+            if (next <= i) {
+                tp = TYPE_ATOM;
+                next  = i + utf8_char_len(strUtf8[i]);
+            }
+            setVetex(row,row+1,1);
+            push(next);
+            row ++;
+            i = next;
         }
-        graph.setVetex(row,row+1,1);
-        graph.push(next);
-        row ++;
-        i = next;
-    }
-    // 2. find all possible word
-    Dictionary::FreqInfo *info = NULL;
-    for ( int i = 0; i < row; i ++) {
-        for(int j = i+1; j <= row; j ++) {
-            if (dict.exist(strUtf8,graph.get(i),graph.get(j))) {
-                if ((info = dict.getFreqInfo(strUtf8,graph.get(i),graph.get(j))) != NULL) {
-                    graph.setVetex(i,j,info->sum());
-                } else {
-                    graph.setVetex(i,j,1);
+        // 2. find all possible word
+        Dictionary::FreqInfo *info = NULL;
+        for ( int i = 0; i < row; i ++) {
+            for(int j = i+1; j <= row; j ++) {
+                //if (dict.exist(strUtf8,get(i),get(j))) {
+                    if ((info = dict.getFreqInfo(strUtf8,get(i),get(j))) != NULL) {
+                        setVetex(i,j,info->sum());
+                //    } else {
+                //        setVetex(i,j,1);
+                //    }
+                } else if(!dict.hasPrefix(strUtf8,get(i),get(j))) {
+                    break;
                 }
-            } else if(!dict.hasPrefix(strUtf8,graph.get(i),graph.get(j))) {
-                break;
             }
         }
+    #ifdef DEBUG
+        print();
+    #endif
     }
-#ifdef DEBUG
-    graph.print();
-#endif
-}
+
+};
 
 class NShortPath
 {
@@ -346,7 +304,7 @@ public:
             // 当前节点的路径
             MinHeap<Token> & paths = _edges[i];
             // 当前节点可到达的节点集合
-            vector<Vetex> & nexts =  _graph.getVetexs(i);
+            SparseList<double> & nexts =  _graph.getVetexs(i);
             for (int j = 0; j < paths.size(); j++) {
                 for(int k = 0; k < nexts.size(); k++) {
                     double weight = paths[j].val + nexts[k].val;
@@ -417,9 +375,9 @@ public:
         Point points[rsize];
         points[0].val = 0;
         for (int i = 0; i < rsize - 1; i++) {
-            vector<Vetex > & vts =  _graph.getVetexs(i);
+            SparseList<double> & vts =  _graph.getVetexs(i);
             for(int j = 0; j < vts.size(); j++) {
-                Vetex & chip = vts[j]; // 当前节点可到达的下一节点
+                SparseList<double>::Cell & chip = vts[j]; // 当前节点可到达的下一节点
                 double weight = points[i].val + chip.val;
                 if( points[chip.id].val > weight) {
                     points[chip.id].val = weight;
@@ -833,7 +791,7 @@ public:
     virtual int do_split(const string &strUtf8,int start,int endoff, Token * resultVec) const 
     {
         Graph graph;
-        genWordGraph(*dict, strUtf8,start,endoff, graph);
+        graph.gen(*dict, strUtf8,start,endoff);
         graph.calcLogProb(dict->getWordFreq(WORDS_FREQ_TOTAL));
 #ifdef NSHORTPATH
         NShortPath npath(graph, 6);
