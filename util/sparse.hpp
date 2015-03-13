@@ -738,5 +738,82 @@ public:
      map<int, SparseList<T> > & getMeta(){return _matrixs;}
 };
 
+const int FIX_MATRIX_COL = 10;
+const int FIX_MATRIX_ROW = 1000;
+template<class T>
+class FixedMatrix
+{
+public:
+    struct Cell{int id; T val;};
+    struct Row{
+        Row():_size(0){}
+        int _size;
+        Cell _cells[FIX_MATRIX_COL];
+
+        inline int size() const {return _size;}
+        Cell & operator[](int col)
+        {
+            return _cells[col];
+        }
+        const Cell & operator[](int col) const
+        {
+            return _cells[col];
+        }
+        inline void push_back(int id, const T & val){
+            _cells[_size].id = id;
+            _cells[_size++].val = val;
+            if(_size == FIX_MATRIX_COL){
+                cout<<*this<<endl;
+            }
+            assert(_size < FIX_MATRIX_COL);
+        }
+
+        friend ostream & operator<<(ostream & out, const Row & row){
+            for ( int j = 0; j < row.size(); j ++){ 
+                out<<"("<<row[j].id<<","<<row[j].val<<")";
+            }
+            return out;
+        }
+    };
+public:
+    FixedMatrix():_rowsize(0){
+    }
+    Row & operator[](int row) 
+    {
+        return _rows[row];
+    }
+    const Row & operator[](int row) const 
+    {
+        return _rows[row];
+    }
+    inline void push_back(int row,int id, const T & val)
+    {
+        _rows[row].push_back(id,val);
+        if (row >= _rowsize){
+            _rowsize = row + 1;
+        }
+        assert (_rowsize <= FIX_MATRIX_ROW);
+    }
+
+    void clear(){
+        for(int i = 0; i < _rowsize; i++){
+            _rows[i]._size = 0;
+        }
+        _rowsize = 0;
+    }
+    inline int size() const {
+        return _rowsize;
+    }
+    friend ostream & operator<<(ostream & out, const FixedMatrix & matrix){
+        for ( int j = 0; j < matrix.size(); j ++){ 
+            out<<j<<":"<<matrix[j]<<endl;
+        }
+        return out;
+    }
+private:
+    Row _rows[FIX_MATRIX_ROW];
+    int _rowsize;
+};
+
 }
 

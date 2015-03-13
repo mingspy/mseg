@@ -184,14 +184,18 @@ double viterbi( const Dictionary & dict, const vector<const SparseVector<int> *>
     return minProb;
 }
 
-class Graph
+class _Graph2
 {
 private:
     // 保存每个字的下标位置
     vector<int> offs;
     Matrix<double> rows;
+    inline void clear()
+    {
+        offs.clear();
+        rows.clear();
+    }
 public:
-    inline void push(int off) { offs.push_back(off); }
     inline int get(int id) const { return offs[id]; }
     inline int size() const { return offs.size(); }
     inline void setVetex(int row, int col, double val)
@@ -212,11 +216,6 @@ public:
         }
     }
 
-    inline void clear()
-    {
-        offs.clear();
-        rows.clear();
-    }
     void print()
     {
         cout<<"-------------------------graph----------------"<<endl;
@@ -239,10 +238,10 @@ public:
 
     void gen(const Dictionary & dict,const string &strUtf8,int start, int endoff)
     {
+        clear();
         // 1. push all sigle atom word into graph
-        vector<int> atom_offs;
         int row = 0;
-        push(start);
+        offs.push_back(start);
         for(int i = start; i < endoff; ) {
             int next = utf8_next_estr(strUtf8,i);
             int tp = TYPE_ESTR;
@@ -250,8 +249,7 @@ public:
                 tp = TYPE_ATOM;
                 next  = i + utf8_char_len(strUtf8[i]);
             }
-            setVetex(row,row+1,1);
-            push(next);
+            offs.push_back(next);
             row ++;
             i = next;
         }
@@ -259,20 +257,104 @@ public:
         Dictionary::FreqInfo *info = NULL;
         for ( int i = 0; i < row; i ++) {
             for(int j = i+1; j <= row; j ++) {
-                //if (dict.exist(strUtf8,get(i),get(j))) {
-                    if ((info = dict.getFreqInfo(strUtf8,get(i),get(j))) != NULL) {
+                if ((info = dict.getFreqInfo(strUtf8,offs[i],offs[j])) != NULL) {
                         setVetex(i,j,info->sum());
-                //    } else {
-                //        setVetex(i,j,1);
-                //    }
-                } else if(!dict.hasPrefix(strUtf8,get(i),get(j))) {
-                    break;
+                } else{
+                    if(j == i + 1){
+                        setVetex(i,j,1);
+                    }
+                    if(!dict.hasPrefix(strUtf8,offs[i],offs[j])) {
+                        break;
+                    }
                 }
             }
         }
     #ifdef DEBUG
         print();
     #endif
+    }
+
+};
+
+class Graph
+{
+private:
+    // 保存每个字的下标位置
+    vector<int> offs;
+    FixedMatrix<double> rows;
+    inline void clear()
+    {
+        offs.clear();
+        rows.clear();
+    }
+public:
+    inline int get(int id) const { return offs[id]; }
+    inline int size() const { return offs.size(); }
+    inline void setVetex(int row, int col, double val)
+    {
+        rows.push_back(row,col,val);
+    }
+
+    void gen(const Dictionary & dict,const string &strUtf8,int start, int endoff)
+    {
+        clear();
+        // 1. push all sigle atom word into graph
+        int row = 0;
+        offs.push_back(start);
+        for(int i = start; i < endoff; ) {
+            int next = utf8_next_estr(strUtf8,i);
+            int tp = TYPE_ESTR;
+            if (next <= i) {
+                tp = TYPE_ATOM;
+                next  = i + utf8_char_len(strUtf8[i]);
+            }
+            offs.push_back(next);
+            row ++;
+            i = next;
+        }
+        // 2. find all possible word
+        Dictionary::FreqInfo *info = NULL;
+        for ( int i = 0; i < row; i ++) {
+            for(int j = i+1; j <= row; j ++) {
+                if ((info = dict.getFreqInfo(strUtf8,offs[i],offs[j]))!=NULL) {
+                     setVetex(i,j,info->sum());
+                } else {
+                    if (j == i + 1){
+                        setVetex(i,j,1);
+                    }
+                    if(!dict.hasPrefix(strUtf8,offs[i],offs[j])) {
+                        break;
+                    }
+                }
+            }
+        }
+#ifdef DEBUG
+        print();
+#endif
+    }
+
+
+    inline FixedMatrix<double>::Row & operator[](int row) { return rows[row]; }
+    void calcLogProb(double totalFreq)
+    {
+        for(int i = 0; i < rows.size(); i ++){
+            FixedMatrix<double>::Row & row = rows[i];
+            for ( int j = 0; j < row.size(); j ++){ 
+                row[j].val = -log((row[j].val + 1.0)/(totalFreq+1.0));
+            }
+        }
+    }
+
+    void print()
+    {
+        cout<<"-------------------------graph----------------"<<endl;
+        cout<<"offs->";
+        for(int i = 0; i < offs.size(); i++) {
+            cout<<i<<":"<<offs[i]<<" ";
+        }
+        cout<<endl;
+        cout<<"rows->"<<rows<<endl;
+        cout<<"----------------------------------------------"<<endl;
     }
 
 };
@@ -304,7 +386,8 @@ public:
             // 当前节点的路径
             MinHeap<Token> & paths = _edges[i];
             // 当前节点可到达的节点集合
-            SparseList<double> & nexts =  _graph.getVetexs(i);
+            //SparseList<double> & nexts =  _graph.getVetexs(i);
+            FixedMatrix<double>::Row &  nexts =  _graph[i];
             for (int j = 0; j < paths.size(); j++) {
                 for(int k = 0; k < nexts.size(); k++) {
                     double weight = paths[j].val + nexts[k].val;
@@ -375,22 +458,16 @@ public:
         Point points[rsize];
         points[0].val = 0;
         for (int i = 0; i < rsize - 1; i++) {
-            SparseList<double> & vts =  _graph.getVetexs(i);
-            for(int j = 0; j < vts.size(); j++) {
-                SparseList<double>::Cell & chip = vts[j]; // 当前节点可到达的下一节点
-                double weight = points[i].val + chip.val;
-                if( points[chip.id].val > weight) {
-                    points[chip.id].val = weight;
-                    points[chip.id].from = i;
+            //SparseList<double> & vts =  _graph.getVetexs(i);
+            FixedMatrix<double>::Row & row =  _graph[i];
+            for(int j = 0; j < row.size(); j++) {
+                double weight = points[i].val + row[j].val;
+                if( points[row[j].id].val > weight) {
+                    points[row[j].id].val = weight;
+                    points[row[j].id].from = i;
                 }
             }
         }
-#ifdef DEBUG
-        cout<<"short path"<<endl;
-        for( int i = 0; i< rsize; i++) {
-            cout<<i<<"->"<<points[i].from<<" "<<points[i].val<<endl;
-        }
-#endif
         vector<int> backoff;
         for(int i = rsize - 1; i > 0;) {
             backoff.push_back(i);
