@@ -188,7 +188,7 @@ class Builder
     void add(string word, const string & pos)
     {
         if(inverse) {
-            reverse(word.begin(),word.end());
+           word = reverse_utf8(word);
         }
         dict.addWord(word);
         if(!inverse) {

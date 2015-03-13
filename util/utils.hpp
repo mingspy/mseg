@@ -243,12 +243,11 @@ inline bool endswith(const string & str, const string & sub)
     return str.compare(str.length() - sub.length(),sub.length(),sub) == 0;
 }
 
-inline bool equal(const string & str1, const string & str2, int start,int end)
+inline bool equal(const string & pattern, const string & str2, int start,int len)
 {
     int i = 0;
-    int j = start;
-    for (; i < str1.length() && j < end && str1[i] == str2[j]; i++,j++);
-    return i == str1.length() && j == end;
+    for (; i < pattern.length() && i < len && pattern[i] == str2[i+start]; i++);
+    return i == len;
 }
 
 inline bool  isPunc(const string &str)
@@ -483,5 +482,27 @@ inline int utf8_to_unicode_len(const char * str,int start, int end){
     }
     return len;
 }
+
+
+string reverse_utf8(const string & src, int start, int endoff){
+    const int size =  endoff - start +1;
+    char dest[size];
+    int idx = size - 1;
+    dest[idx] = 0;
+    for(int i = start; i < endoff; ){
+        int chlen = utf8_char_len(src[i]);
+        idx -= chlen;
+        for(int j = 0; j < chlen; j++){
+            dest[idx + j] = src[j+i];
+        }
+        i += chlen;
+    }
+    return string(dest);
+}
+
+string reverse_utf8(const string & src){
+    return reverse_utf8(src,0,src.length());
+}
+
 };
 

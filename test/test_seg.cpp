@@ -14,7 +14,7 @@ const int DATA_SIZE = 15;
 string testdata[] = {
     "软件和服务",
     "www.sina.com.cn是个好网站",
-    "ISNUMBER函数是office办公软件excel中的一种函数\n是脚本语言",
+    "我们都会知道还是都不会知道这是一个长句子测试。在所有字符集中最知名的可能要数被称为ASCII的7位字符集了。它是美国标准信息交换代码的缩写",
     "中华人民共和国简称中国",
     "结婚的和尚未结婚的",
     "他说的确实在理",
@@ -88,7 +88,7 @@ void testGenGraph(const Dictionary * core_dict)
     double size = speedstr.length();
     Graph g;
     for(int i = 0; i < 1024; i ++) {
-        genWordGraph(*core_dict, speedstr,g);
+        genWordGraph(*core_dict, speedstr,0,size,g);
     }
     cout<<"speed is "<<size/t.elapsed()/1024<<endl;
 }
@@ -101,7 +101,7 @@ void testNShortPath(const Dictionary * core_dict)
 	Token result[10000];
     for(int i = 0; i < 1024; i ++) {
         Graph g;
-        genWordGraph(*core_dict, speedstr,g);
+        genWordGraph(*core_dict, speedstr,0,size,g);
         NShortPath npath(g,10);
         npath.calc();
         npath.getBestPath(0,result);
@@ -116,7 +116,7 @@ void testShortPath(const Dictionary * core_dict)
 	Token result[10000];
     for(int i = 0; i < 1024; i ++) {
         Graph g;
-        genWordGraph(*core_dict, speedstr,g);
+        genWordGraph(*core_dict, speedstr,0,size,g);
         ShortPath path(g);
         path.getBestPath(result);
     }
@@ -132,7 +132,7 @@ void test_metrics(const Dictionary * core_dict, const Dictionary * inverse_dict)
 {
     testGenGraph(core_dict);
     testNShortPath(core_dict);
-    testShortPath(core_dict);
+    //testShortPath(core_dict);
     testSegs(core_dict, inverse_dict);
     testTagger(core_dict);
 }
@@ -177,11 +177,11 @@ int main(int argc, char ** argv)
     }
     Timer timer;
     Dictionary core_dict;
-    core_dict.open("./core.dic");
+    core_dict.open("../dict/core.dic");
     Dictionary inverse_dict;
-    inverse_dict.open("./inverse.dic");
+    inverse_dict.open("../dict/inverse.dic");
     Dictionary person_dict;
-    person_dict.open("./person.dic");
+    person_dict.open("../dict/person.dic");
     double load_used = timer.elapsed();
     cout<<"load dicts used" << load_used<<endl;
     string option = argv[1];
@@ -193,11 +193,23 @@ int main(int argc, char ** argv)
         test_ner(&core_dict, &person_dict);
     }
     else{
-        Tagger tagger(&core_dict);
-        vector<string> str;
-        str.push_back("中国");
-        vector<string> tags;
-        tagger.tagging(str,tags);
+        string s = "中华人民共和国简称中国";
+        cout<<s.c_str()<<endl;
+        Unigram r(&core_dict);
+        Token vec[10000];
+        int len = r.split(s,vec,10000);
+        cout<<"len of result:"<<len<<endl;
+        print(vec,100);
+        print(s,vec,len);
+        cout<<flush;
+        s =  "我们都会知道还是都不会知道这是一个长句子测试。在所有字符集中最知名的可能要数被称为ASCII的7位字符集了。它是美国标准信息交换代码的缩写";
+        cout<<s.c_str()<<endl;
+        len = r.split(s,vec,10000);
+        cout<<"len of result:"<<len<<endl;
+        print(vec,100);
+        cout<<flush;
+        print(s,vec,len);
+
     }
 
     //mseg_full_split("ddd",tks,1000);

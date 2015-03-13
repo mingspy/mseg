@@ -12,22 +12,30 @@ int main(int argc, char * argv[]){
         cout<<"usage:\t"<<argv[0]<<" dict_file_path"<<endl;
         return -1;
     }
+
+    bool inversed = false;
+    if(argc > 2&& strcmp(argv[2],"inverse")== 0){
+        inversed = true;
+    }
    
     Timer t;
     Dictionary dict;
     dict.open(argv[1]);
     cout<<t<<endl;
-    string input;
+    string word;
     cout<<"Enter the word to query, enter \'exit\' to exit"<<endl;
     while(true){
         cout<<"> ";
-        getline(cin,input);
-        if (input == "exit"){
+        getline(cin,word);
+        if (word == "exit"){
             break;
         }
-        const Dictionary::WordInfo * info = dict.getWordInfo(input);
+        if(inversed){
+            word = reverse_utf8(word);
+        }
+        const Dictionary::WordInfo * info = dict.getWordInfo(word);
         if(info){
-            cout<<info->word<<"(id="<<info->id<<", total="<<dict.getWordFreq(input)<<") ";
+            cout<<info->word<<"(id="<<info->id<<", total="<<dict.getWordFreq(word)<<") ";
             if (info->info){
                 for( int i = 0; i < info->info->size(); i++){
                     const char * word = dict.getWord(info->info->getId(i));

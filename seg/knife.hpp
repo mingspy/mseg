@@ -89,9 +89,9 @@ bool token_compare_dsc(const Token & o1, const Token & o2)
     return false;
 }
 
-void print(const vector<Token> & tokenArr)
+void print(const Token* tokenArr, int len)
 {
-    for(int i = 0; i< tokenArr.size(); i++) {
+    for(int i = 0; i< len; i++) {
         cout<<tokenArr[i];
     }
     cout<<endl;
@@ -193,6 +193,7 @@ struct Vetex {
 class Graph
 {
 private:
+    // 保存每个字的下标位置
     vector<int> offs;
     vector<vector<Vetex> > rows;
     void ensureRow(int row)
@@ -279,15 +280,14 @@ public:
     }
 };
 
-void genWordGraph(const Dictionary & dict,const string &strUtf8, Graph & graph)
+void genWordGraph(const Dictionary & dict,const string &strUtf8,int start, int endoff, Graph & graph)
 {
     // 1. push all sigle atom word into graph
     graph.clear();
     vector<int> atom_offs;
-    int len = strUtf8.length();
     int row = 0;
-    graph.push(0);
-    for(int i = 0; i < len; ) {
+    graph.push(start);
+    for(int i = start; i < endoff; ) {
         int next = utf8_next_estr(strUtf8,i);
         int tp = TYPE_ESTR;
         if (next <= i) {
@@ -360,6 +360,7 @@ public:
     }
     int getBestPath(int idx, Token * resultVec)
     {
+		int retLen = 0;
         int last = _graph.size() - 1;
         MinHeap<Token> & endpath = _edges[last];
         if (idx >= endpath.size()) return false;
@@ -368,13 +369,12 @@ public:
             sorted = true;
         }
         vector<int> backoff;
-        while(last != -1) {
+        while(last > - 1) {
             backoff.push_back(last);
             Token & cp = _edges[last][idx];
             idx = cp.end;
             last = cp.start;
         }
-		int retLen;
         for(int i = backoff.size() - 1; i > 0; i--) {
 			resultVec[retLen].start = _graph.get(backoff[i]);
 			resultVec[retLen++].end = _graph.get(backoff[i - 1]);
@@ -413,8 +413,8 @@ public:
     {
         // 1. initial weights
         // 2.calc weights:
-        int rsize = _graph.size();
-        Point *points = new Point[rsize];
+        const int rsize = _graph.size();
+        Point points[rsize];
         points[0].val = 0;
         for (int i = 0; i < rsize - 1; i++) {
             vector<Vetex > & vts =  _graph.getVetexs(i);
@@ -444,7 +444,6 @@ public:
 			resultVec[retLen].start = _graph.get(backoff[i]);
 			resultVec[retLen++].end = _graph.get(backoff[i - 1]);
         }
-        delete [] points;
 		return retLen;
     }
 };
@@ -617,7 +616,43 @@ public:
      * @param strUtf8 : the input str to split.
      * @param resultVec : resultVec words
      */
-    virtual int split(const string &strUtf8, Token * resultVec, int resultVecLen) const = 0;
+    virtual int do_split(const string &strUtf8,int start,int endoff, Token * resultVec) const = 0;
+    int split(const string &strUtf8, Token * resultVec, int resultVecLen, bool break_down = true, bool do_ner = true) const
+    {
+        static const int split_len = 60;
+        static const string puncs[] = {"。","，","!"," ","\n","！","?"};
+        static const int puncs_size = 7;
+        int slen = strUtf8.length();
+		int retLen = 0;
+        // sentance split to litte sentance
+        int start = 0;
+        int cur = split_len;
+        if(break_down)
+        while(cur < slen) {
+            int cur_char_len =  utf8_char_len(strUtf8[cur]);
+            for(int k = 0; k< puncs_size; k ++) {
+                if (equal(puncs[k], strUtf8, cur, cur_char_len)) {
+                    int partLen = do_split(strUtf8, start, cur,resultVec + retLen);
+                    retLen += partLen;
+                    // set delimiter.
+                    resultVec[retLen].start = cur;
+					resultVec[retLen++].end = cur + cur_char_len;
+                    start = cur_char_len + cur;
+                    cur += split_len;
+                    break;
+                }
+            }
+            cur += cur_char_len;
+        }
+
+        if (start < slen) {
+            int partLen = do_split(strUtf8, start, slen,resultVec + retLen);
+            retLen += partLen;
+        }
+		assert(retLen <= resultVecLen);
+		return retLen;
+    }
+
     void setDict(Dictionary * pdict){dict = pdict;}
     void setName(const string & name)
     {
@@ -651,11 +686,10 @@ public:
         setName("--* Lee's fly cutter: a forward max match tokenizer *--");
     }
 
-    virtual int split(const string &strUtf8, Token * resultVec, int resultVecLen) const
+    virtual int do_split(const string &strUtf8,int start,int endoff, Token * resultVec) const 
     {
-        int len = strUtf8.length();
 		int retLen = 0;
-        for(int i = 0; i < len; ) {
+        for(int i = start; i < endoff; ) {
             int estr = utf8_next_estr(strUtf8,i);
             if (estr > i) {
                 //resultVec.push_back(Token(i,estr,TYPE_ESTR));
@@ -666,7 +700,7 @@ public:
             }
             int j = i + utf8_char_len(strUtf8[i]);
             int next = j;
-            while( j < len ) {
+            while( j < endoff ) {
                 j += utf8_char_len(strUtf8[j]);
                 if(dict->exist(strUtf8,i,j)) {
                     next = j;
@@ -674,12 +708,10 @@ public:
                     break;
                 }
             }
-            //resultVec.push_back(Token(i,next));
 			resultVec[retLen].start = i;
 			resultVec[retLen++].end = next;
             i = next;
         }
-		assert(retLen <= resultVecLen);
 		return retLen;
     }
 };
@@ -695,8 +727,7 @@ public:
  * 后来从新井赤空儿子的手中接过了真打，并打败了前来夺刀的刀狩阿张
  * ---------------------------------------------------------------
  */
-class Renda: public IKnife
-{
+class Renda: public Flycutter{
 public:
     Renda(const Dictionary * refdict = NULL)
     {
@@ -704,51 +735,37 @@ public:
         setName("--* renda: a backward max match tokenizer *--");
     }
 
-    virtual int split(const string &strUtf8, Token * resultVec, int resultVecLen) const
+    virtual int do_split(const string &strUtf8,int start,int endoff, Token * resultVec) const 
     {
-        int len = strUtf8.length();
-        vector<int> pos;
-        pos.push_back(len);
-        for(int i = 0; i < len; ) {
-            int estr = utf8_next_estr(strUtf8,i);
-            if(estr > i) {
-                i = estr;
-                pos.push_back(len - estr);
-                continue;
-            }
-            int j = i + utf8_char_len(strUtf8[i]);
-            pos.push_back(len - j);
-            i = j;
+        string inversed_str = reverse_utf8(strUtf8,start,endoff);
+        int len = Flycutter::do_split(inversed_str,0,endoff - start,resultVec);
+
+        //cout<<"inversed:"<<inversed_str.c_str()<<endl;
+        //print(resultVec,len);
+        //print(inversed_str,resultVec,len);
+
+        // reverse all words's start and end offset.
+        int mid = len / 2;
+        int last = len - 1;
+        int tmp = 0;
+        for(int i = 0; i < mid; i ++){
+            tmp = endoff - resultVec[i].start;
+            resultVec[i].start = endoff -  resultVec[last - i].end;
+            resultVec[last - i].end = tmp;
+            tmp = endoff - resultVec[i].end;
+            resultVec[i].end = endoff - resultVec[last - i].start;
+            resultVec[last - i].start = tmp;
         }
-        string str(strUtf8.rbegin(),strUtf8.rend());
-		int retLen = 0;
-        for(int i = pos.size() - 1; i > 0; ) {
-            int next = i-1;
-            for(int j = i-2; j >= 0; j--) {
-                if(dict->exist(str,pos[i],pos[j])) {
-                    next = j;
-                } else if(!dict->hasPrefix(str,pos[i],pos[j])) {
-                    break;
-                }
-            }
-            //resultVec.push_back(Token(len - pos[next], len - pos[i]));;
-			resultVec[retLen].start = len - pos[next];
-			resultVec[retLen++].end = len - pos[i];
-            i = next;
+        if(len % 2 != 0){ // handle the middle one 
+            tmp = endoff - resultVec[mid].start;
+            resultVec[mid].start = endoff - resultVec[mid].end;
+            resultVec[mid].end = tmp;
         }
-		
-        //reverse(resultVec.begin(), resultVec.end());
-		assert(retLen <= resultVecLen);
-		Token tmp;
-		int half = retLen / 2;
-		for (int i = 0; i < half; i++){
-			tmp = resultVec[i];
-			resultVec[i] = resultVec[retLen - 1 - i];
-			resultVec[retLen - 1 - i] = tmp;
-		}
-		return retLen;
+        //print(resultVec,len);
+        return len;
     }
 };
+
 
 /*
  * 全切分方法，切出所有词典中出现的词
@@ -767,12 +784,11 @@ public:
         setName("--* paoding: a full words tokenizer *--");
     }
 
-    virtual int split(const string &strUtf8, Token * resultVec, int resultVecLen) const
+    virtual int do_split(const string &strUtf8,int start,int endoff, Token * resultVec) const 
     {
-        int len = strUtf8.length();
         int best = -1;
 		int retLen = 0;
-        for(int i = 0; i < len; ) {
+        for(int i = start; i < endoff; ) {
             int estr = utf8_next_estr(strUtf8,i);
             if (estr > i) {
                 //resultVec.push_back(Token(i,estr,TYPE_ESTR));
@@ -783,7 +799,7 @@ public:
             }
             int j = i + utf8_char_len(strUtf8[i]);
             int next = j;
-            while( j < len ) {
+            while( j < endoff ) {
                 j += utf8_char_len(strUtf8[j]);
                 if(dict->exist(strUtf8,i,j)) {
                     best = j;
@@ -801,7 +817,6 @@ public:
             }
             i = next;
         }
-		assert(retLen <= resultVecLen);
 		return retLen;
     }
 };
@@ -814,66 +829,11 @@ public:
         dict = refdict;
         setName("--* unigram: a unitary gram tokenizer *--");
     }
-#ifdef BREAKDOWN
-    virtual int split(const string &strUtf8, Token * resultVec, int resultVecLen) const
-    {
-        int split_len = 60;
-        int slen = strUtf8.length();
-		int retLen = 0;
-        Graph graph;
-        if (slen <= split_len) {
-            retLen = dosplit(strUtf8, resultVec, graph);
-			assert(retLen <= resultVecLen);
-            return retLen;
-        }
-        static string puncs[] = {"。",",","，","!"," ","\n","！"};
-        int puncs_size = 7;
-        // sentance split to litte sentance
-        int start = 0;
-        int end = split_len;
-		Token part[1000];
-        while(end < slen) {
-            int nxt = end + utf8_char_len(strUtf8[end]);
-            for(int k = 0; k< puncs_size; k ++) {
-                if (equal(puncs[k], strUtf8, end, nxt)) {
-                    //vector<Token> resultVec;
-                    int partLen = dosplit(strUtf8.substr(start, nxt - start),part,graph);
-                    for(int m = 0; m < partLen; m++) {
-                        resultVec[retLen].start = part[m].start + start;
-						resultVec[retLen++].end = part[m].end + start;
-                    }
-                    start = nxt;
-                    end = nxt + split_len;
-                    break;
-                }
-            }
 
-            if (start == nxt) continue;
-            else end = nxt;
-        }
-
-        if (start < slen) {
-            int partLen = dosplit(strUtf8.substr(start, slen - start),part, graph);
-            for(int m = 0; m < partLen; m++) {
-                resultVec[retLen].start = part[m].start + start;
-				resultVec[retLen++].end = part[m].end + start;
-            }
-        }
-		assert(retLen <= resultVecLen);
-		return retLen;
-    }
-
-#else
-    virtual int split(const string &strUtf8, Token * resultVec, int resultVecLen) const
+    virtual int do_split(const string &strUtf8,int start,int endoff, Token * resultVec) const 
     {
         Graph graph;
-		return dosplit(strUtf8, resultVec, graph);
-    }
-#endif
-private:
-    inline int dosplit(const string &strUtf8, Token * resultVec, Graph & graph) const
-    {
-        genWordGraph(*dict, strUtf8, graph);
+        genWordGraph(*dict, strUtf8,start,endoff, graph);
         graph.calcLogProb(dict->getWordFreq(WORDS_FREQ_TOTAL));
 #ifdef NSHORTPATH
         NShortPath npath(graph, 6);
