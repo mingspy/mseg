@@ -6,6 +6,7 @@ INCLUDE=-I../seg/ -I../util/ -I../dict/
 #CC=g++ -DNSHORTPATH -O3 $(INCLUDE) 
 CC=g++  $(INCLUDE) -O3
 #CC=g++ -DDEBUG -g  $(INCLUDE)
+#CC=g++ -g  $(INCLUDE)
 
 all:uda useg
 .PHONY:all

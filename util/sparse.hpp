@@ -85,29 +85,17 @@ public:
         }
         return *this;
     }
-    /**
-     * Returns the id of the attribute stored at the given position.
-     * @param position the position
-     */
-    inline int getId(int index) const
+
+    inline Cell & operator[](int index)
     {
         assert(index < size());
-        return _cells[index].id;
+        return _cells[index];
     }
 
-    /*
-     * index is the direct index of cell.
-     */
-    inline T & getVal(int index) const
+    inline  const Cell & operator[](int index) const
     {
         assert(index < size());
-        return _cells[index].val;
-    }
-
-    inline void setVal(int position, const T & val)
-    {
-        assert(position < size());
-        _cells[position].val = val;
+        return _cells[index];
     }
 
     inline T sum() const
@@ -448,43 +436,7 @@ public:
     const iterator & end(){
         return iterator::empty();
     }
-    /**
-     * Returns the id of the attribute stored at the given position.
-     * @param position the position
-    inline int getId(int index) const
-    {
-        assert(index < size());
-        Cell * cur = _first;
-        for ( int i = 0; i < index && cur; i++){
-            cur = cur->next;
-        }
-        return cur->id;
-    }
-     */
 
-    /*
-     * index is the direct index of cell.
-    inline T & getVal(int index) const
-    {
-        assert(index < size());
-        Cell * cur = _first;
-        for ( int i = 0; i < index && cur; i++){
-            cur = cur->next;
-        }
-        return cur->val;
-    }
-
-    inline void setVal(int index, const T & val)
-    {
-        assert(index < size());
-        Cell * cur = _first;
-        for ( int i = 0; i < index && cur; i++){
-            cur = cur->next;
-        }
-        cur->val = val;
-    }
-
-    */
     inline T sum() const
     {
         T _sum = (T)0;
@@ -509,6 +461,13 @@ public:
         return *cur;
     }
 
+    inline const Cell & operator[](int index) const {
+        Cell * cur = _first;
+        for ( int i = 0; i < index && cur; i++){
+            cur = cur->next;
+        }
+        return *cur;
+    }
     /**
      * Sets a specific value in the instance to the given value (internal
      * floating-point format). Performs a deep copy of the vector of attribute
@@ -739,7 +698,7 @@ public:
 };
 
 const int FIX_MATRIX_COL = 10;
-const int FIX_MATRIX_ROW = 1000;
+const int FIX_MATRIX_ROW = 300;
 template<class T>
 class FixedMatrix
 {

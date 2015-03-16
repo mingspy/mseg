@@ -45,87 +45,77 @@ public:
     int end; // len
     int pos; // type of this Token or attribute index.
     double val;
-    //wstring _word; // maybe empty
-    Token(int start_off = 0, int end_off = 0, int attr = -1, double score = 0):start(start_off),end(end_off),pos(attr),val(score)
-    {
-    }
+    Token(int start_off = 0, int end_off = 0, int attr = -1, double score = 0)
+        :start(start_off),end(end_off),pos(attr),val(score) { }
 
-    friend ostream & operator<<(ostream & out, const Token & t)
-    {
+    friend ostream & operator<<(ostream & out, const Token & t) {
         out<<"("<<t.start<<","<<t.end<<","<<t.pos<<","<<t.val<<")";
         return out;
     }
 
-    inline bool operator==(const Token& other) const
-    {
-        return start == other.start && end == other.end;
-    }
-
-    inline bool operator!=(const Token& other) const
-    {
-        return start != other.start || end != other.end;
-    }
-
-    inline bool operator<(const Token& other) const
-    {
-        return val < other.val;
-    }
+    inline bool operator==(const Token& other) const { return start == other.start && end == other.end; }
+    inline bool operator!=(const Token& other) const { return start != other.start || end != other.end; }
+    inline bool operator<(const Token& other) const { return val < other.val; }
 };
 
-bool diff(const vector<Token> & v1, const vector<Token> & v2)
-{
-    if (v1.size() != v2.size()) return true;
-    int vsize = v1.size();
-    for (int i = 0; i < vsize; i ++) {
-        if (v1[i] != v2[i]) return true;
-    }
-    return false;
+//bool diff(const vector<Token> & v1, const vector<Token> & v2)
+//{
+//    if (v1.size() != v2.size()) return true;
+//    int vsize = v1.size();
+//    for (int i = 0; i < vsize; i ++) { if (v1[i] != v2[i]) return true; }
+//    return false;
+//}
+
+//bool token_compare_dsc(const Token & o1, const Token & o2) { 
+//    double d = o1.val - o2.val;
+//    if (d <= -0.00000001) return true;
+//    return false;
+//}
+
+void print(const Token* tokenArr, int len) {
+    for(int i = 0; i< len; i++) { cout<<tokenArr[i]; }
+    cout<<endl;
 }
 
-bool token_compare_dsc(const Token & o1, const Token & o2)
-{
-    double d = o1.val - o2.val;
-    if (d <= -0.00000001) return true;
-    return false;
-}
-
-void print(const Token* tokenArr, int len)
-{
+void print(const string & str, const Token * tokenArr, int len, const Dictionary * dict = NULL) {
+    const char * pos = NULL;
     for(int i = 0; i< len; i++) {
-        cout<<tokenArr[i];
+        cout<<str.substr(tokenArr[i].start,tokenArr[i].end - tokenArr[i].start)<<"/";
+        if(dict &&(pos = dict->getWord(tokenArr[i].pos)) != NULL){
+            cout<<pos<<" ";
+        }else{
+            cout<<tokenArr[i].pos<<" ";
+        }
     }
     cout<<endl;
 }
 
-void print(const string & str, const Token * tokenArr, int len)
-{
-    for(int i = 0; i< len; i++) {
-        cout<<str.substr(tokenArr[i].start,tokenArr[i].end - tokenArr[i].start)<<"/"<<tokenArr[i].pos<<" ";
-    }
-    cout<<endl;
-}
-
-void substrs(const string & str, const Token * tokenArr, int len, vector<string> & result)
-{
+void substrs(const string & str, const Token * tokenArr, int len, vector<string> & result) {
     for(int i = 0; i< len; i++) {
         result.push_back(str.substr(tokenArr[i].start,tokenArr[i].end - tokenArr[i].start));
     }
 }
 
 
-double viterbi( const Dictionary & dict, const vector<const SparseVector<int> *> & Observs, 
-        Token * tokenArr, int arrLen)
-{
-    int T = Observs.size();
-    Matrix<double> delta; // 到达此节点的路径值
-    Matrix<int> psi; //  到达此节点的最佳状态
+const int VITERBI_MAX_STATE_SIZE = 20; 
+#define setMatrixVal(matrix,row,col,val) (matrix[(row) * VITERBI_MAX_STATE_SIZE + col] = (val))
+#define getMatrixVal(matrix,row,col) matrix[(row) * VITERBI_MAX_STATE_SIZE + col]
+
+double viterbi( const Dictionary & dict, const SparseVector<int> * * Observs,const int T, 
+        Token * tokenArr, int arrLen) {
+    const int matrix_cap = T*VITERBI_MAX_STATE_SIZE;
+    double delta[matrix_cap];
+    int psi[matrix_cap];
+    memset(delta, 0 , sizeof(double)*matrix_cap);
+    memset(psi, 0 , sizeof(int)*matrix_cap);
 
     // 1. Initialize.
     // 设置第一个节点路径值为emit value
     double nature_total = dict.getWordFreq(POS_FREQ_TOTAL);
+    assert(Observs[0]->size() <= VITERBI_MAX_STATE_SIZE);
     for(int i = 0; i< Observs[0]->size(); i++) {
-        double emitp = -log((Observs[0]->getVal(i) + 1.0)/ (nature_total + 10.0));
-        delta[0].setValById(Observs[0]->getId(i), emitp);
+        double emitp = -log(((*Observs[0])[i].val + 1.0)/ (nature_total + 10.0));
+        delta[i]  = emitp;
     }
 
     // 2. Induction.
@@ -138,169 +128,71 @@ double viterbi( const Dictionary & dict, const vector<const SparseVector<int> *>
     for ( int t = 1; t < T; t++ ) {
         // Calculate each roles best delta from previous to current.
         for ( int j = 0; j < Observs[t]->size(); j++ ) {
+            assert(Observs[t]->size() <= VITERBI_MAX_STATE_SIZE);
             minProb = PROB_INFINT;
-            int state_cur = Observs[t]->getId(j);
+            int state_cur = (*Observs[t])[j].id;
             for ( int i = 0; i < Observs[t - 1]->size(); i++ ) {
                 // Get a[i][j], same as -logP(ti-1|ti).
-                int state_pre = Observs[t - 1]->getId(i);
+                int state_pre = (*Observs[t - 1])[i].id;
                 proba = -log((dict.getAttrFreq(state_pre, state_cur) + 1.0)/(dict.getWordFreq(state_pre)+10.0));
                 // Add delta[t-1][i].
-                proba += delta[t - 1].getValById(state_pre);
+                proba += getMatrixVal(delta,t - 1,i);
                 if ( proba < minProb ) {
-                    best_state = state_pre;
+                    best_state = i;
                     minProb = proba;
                 }
             }
-            psi[ t ].setValById(state_cur,best_state);
-            double emitProb = -log((Observs[t]->getVal(j) + 1.0)/ (dict.getWordFreq(state_cur) + 10.0));
-            delta[ t ].setValById(state_cur, minProb + emitProb);
+            double emitProb = -log(((*Observs[t])[j].val + 1.0)/ (dict.getWordFreq(state_cur) + 10.0));
+            setMatrixVal(delta,t,j,minProb + emitProb);
+            setMatrixVal(psi,t,j,best_state);
         }
     }
 
     // 3.Terminal.
     // Record the best role tag's index.
-    //bestPos.setValById(T, -1);
     minProb = PROB_INFINT;
     best_state = 0;
-    SparseList<double> & lastDelta = delta[T - 1];
-    for ( SparseList<double>::iterator it = lastDelta.begin(); it !=  lastDelta.end(); it++ ) {
-        if ( it->val < minProb ) {
-            best_state = it->id;
-            minProb = it->val;
+    for (int i = 0; i < Observs[T - 1]->size(); i ++){
+        if ( getMatrixVal(delta,T - 1, i) < minProb ) {
+            best_state = i;
+            minProb = getMatrixVal(delta,T-1,i);
         }
     }
 
-
     // Get best path.
-    //bestPos.push_back(index);
-    tokenArr[T-1].pos = best_state;
-    for ( int t = T - 1; t > 0; t-- ) {
-        //bestPos.push_back(psi[t].getVal(bestPos[T- 1 - t]));
-        best_state = psi[t].getValById(best_state);
-        tokenArr[t-1].pos = best_state;
+    tokenArr[T-1].pos =  (*Observs[T-1])[best_state].id;
+    for ( int t = T-1 ; t > 0; t-- ) {
+        best_state = getMatrixVal(psi,t,best_state);
+        tokenArr[t-1].pos =  (*Observs[t-1])[best_state].id;
     }
 
     assert(minProb >=0);
     return minProb;
 }
 
-class _Graph2
-{
-private:
-    // 保存每个字的下标位置
-    vector<int> offs;
-    Matrix<double> rows;
-    inline void clear()
-    {
-        offs.clear();
-        rows.clear();
-    }
-public:
-    inline int get(int id) const { return offs[id]; }
-    inline int size() const { return offs.size(); }
-    inline void setVetex(int row, int col, double val)
-    {
-        SparseList<double> & r = rows[row];
-        r.setValById(col,val);
-    }
-
-    inline SparseList<double> & getVetexs(int row) { return rows[row]; }
-    inline SparseList<double> & operator[](int row) { return rows[row]; }
-    void calcLogProb(double totalFreq)
-    {
-        for( map<int,SparseList<double> >::iterator i = rows.getMeta().begin(); i != rows.getMeta().end(); i ++){
-            SparseList<double> & sparse  = i->second;
-            for ( SparseList<double>::iterator it = sparse.begin(); it !=  sparse.end(); it++ ) {
-                it->val = -log((it->val + 1.0)/(totalFreq+1.0));
-            }
-        }
-    }
-
-    void print()
-    {
-        cout<<"-------------------------graph----------------"<<endl;
-        cout<<"offs->";
-        for(int i = 0; i < offs.size(); i++) {
-            cout<<i<<":"<<offs[i]<<" ";
-        }
-        cout<<endl;
-        cout<<"rows->"<<endl;
-        for( map<int,SparseList<double> >::iterator i = rows.getMeta().begin(); i != rows.getMeta().end(); i ++){
-            cout<<i->first<<":";
-            SparseList<double> & sparse  = i->second;
-            for ( SparseList<double>::iterator it = sparse.begin(); it !=  sparse.end(); it++ ) {
-                cout<<"("<<it->id<<","<<it->val<<")";
-            }
-        }
-        cout<<endl;
-        cout<<"----------------------------------------------"<<endl;
-    }
-
-    void gen(const Dictionary & dict,const string &strUtf8,int start, int endoff)
-    {
-        clear();
-        // 1. push all sigle atom word into graph
-        int row = 0;
-        offs.push_back(start);
-        for(int i = start; i < endoff; ) {
-            int next = utf8_next_estr(strUtf8,i);
-            int tp = TYPE_ESTR;
-            if (next <= i) {
-                tp = TYPE_ATOM;
-                next  = i + utf8_char_len(strUtf8[i]);
-            }
-            offs.push_back(next);
-            row ++;
-            i = next;
-        }
-        // 2. find all possible word
-        Dictionary::FreqInfo *info = NULL;
-        for ( int i = 0; i < row; i ++) {
-            for(int j = i+1; j <= row; j ++) {
-                if ((info = dict.getFreqInfo(strUtf8,offs[i],offs[j])) != NULL) {
-                        setVetex(i,j,info->sum());
-                } else{
-                    if(j == i + 1){
-                        setVetex(i,j,1);
-                    }
-                    if(!dict.hasPrefix(strUtf8,offs[i],offs[j])) {
-                        break;
-                    }
-                }
-            }
-        }
-    #ifdef DEBUG
-        print();
-    #endif
-    }
-
-};
-
 class Graph
 {
 private:
     // 保存每个字的下标位置
-    vector<int> offs;
-    FixedMatrix<double> rows;
+    int _offs[300];
+    int _size;
+    FixedMatrix<double> _rows;
     inline void clear()
     {
-        offs.clear();
-        rows.clear();
+
+        //offs.clear();
+        _size = 0;
+        _rows.clear();
     }
 public:
-    inline int get(int id) const { return offs[id]; }
-    inline int size() const { return offs.size(); }
-    inline void setVetex(int row, int col, double val)
-    {
-        rows.push_back(row,col,val);
-    }
-
+    inline int getOffset(int id) const { return _offs[id]; }
+    // how many rows of this graph
+    inline int size() const { return _size; }
     void gen(const Dictionary & dict,const string &strUtf8,int start, int endoff)
     {
         clear();
         // 1. push all sigle atom word into graph
-        int row = 0;
-        offs.push_back(start);
+        _offs[_size++] = start;
         for(int i = start; i < endoff; ) {
             int next = utf8_next_estr(strUtf8,i);
             int tp = TYPE_ESTR;
@@ -308,21 +200,20 @@ public:
                 tp = TYPE_ATOM;
                 next  = i + utf8_char_len(strUtf8[i]);
             }
-            offs.push_back(next);
-            row ++;
+            _offs[_size++] = next;
             i = next;
         }
         // 2. find all possible word
         Dictionary::FreqInfo *info = NULL;
-        for ( int i = 0; i < row; i ++) {
-            for(int j = i+1; j <= row; j ++) {
-                if ((info = dict.getFreqInfo(strUtf8,offs[i],offs[j]))!=NULL) {
-                     setVetex(i,j,info->sum());
+        for ( int i = 0; i < _size - 1; i ++) {
+            for(int j = i+1; j <_size; j ++) {
+                if ((info = dict.getFreqInfo(strUtf8,_offs[i],_offs[j]))!=NULL) {
+                    _rows.push_back(i,j,info->sum());
                 } else {
                     if (j == i + 1){
-                        setVetex(i,j,1);
+                        _rows.push_back(i,j,1);
                     }
-                    if(!dict.hasPrefix(strUtf8,offs[i],offs[j])) {
+                    if(!dict.hasPrefix(strUtf8,_offs[i],_offs[j])) {
                         break;
                     }
                 }
@@ -334,11 +225,11 @@ public:
     }
 
 
-    inline FixedMatrix<double>::Row & operator[](int row) { return rows[row]; }
+    inline FixedMatrix<double>::Row & operator[](int row) { return _rows[row]; }
     void calcLogProb(double totalFreq)
     {
-        for(int i = 0; i < rows.size(); i ++){
-            FixedMatrix<double>::Row & row = rows[i];
+        for(int i = 0; i < _rows.size(); i ++){
+            FixedMatrix<double>::Row & row = _rows[i];
             for ( int j = 0; j < row.size(); j ++){ 
                 row[j].val = -log((row[j].val + 1.0)/(totalFreq+1.0));
             }
@@ -349,11 +240,11 @@ public:
     {
         cout<<"-------------------------graph----------------"<<endl;
         cout<<"offs->";
-        for(int i = 0; i < offs.size(); i++) {
-            cout<<i<<":"<<offs[i]<<" ";
+        for(int i = 0; i < size(); i++) {
+            cout<<i<<":"<<_offs[i]<<" ";
         }
         cout<<endl;
-        cout<<"rows->"<<rows<<endl;
+        cout<<"rows->"<<_rows<<endl;
         cout<<"----------------------------------------------"<<endl;
     }
 
@@ -361,23 +252,15 @@ public:
 
 class NShortPath
 {
-    Graph & _graph;
-    MinHeap<Token> *  _edges;
-    bool sorted;
 public:
-    NShortPath(Graph & graph, int n):_graph(graph),sorted(false)
+    static int getBestPath(Graph & _graph, Token * tokenArr,int N)
     {
-        _edges = new MinHeap<Token>[_graph.size()];
-        for(int i = 0; i < graph.size(); i++) {
-            _edges[i].resize(n);
+        const int _esize = _graph.size();
+        MinHeap<Token>  _edges[_esize];
+        for(int i = 0; i < _esize; i++) {
+            _edges[i].resize(N);
         }
-    }
-    ~NShortPath()
-    {
-        delete [] _edges;
-    };
-    void calc()
-    {
+
         // 1. initial weights
         // 2.calc weights:
         _edges[0].add_if_small(Token(-1,-1,0));
@@ -395,45 +278,26 @@ public:
                 }
             }
         }
-#ifdef DEBUG
-        print();
-#endif
-    }
-    int getBestPath(int idx, Token * resultVec)
-    {
+
+        int idx = 0;
 		int retLen = 0;
         int last = _graph.size() - 1;
         MinHeap<Token> & endpath = _edges[last];
         if (idx >= endpath.size()) return false;
-        if (!sorted) {
-            endpath.sort();
-            sorted = true;
-        }
-        vector<int> backoff;
+        endpath.sort();
+        int backoff[_esize];
+        int len = 0;
         while(last > - 1) {
-            backoff.push_back(last);
+            backoff[len++] = last;
             Token & cp = _edges[last][idx];
             idx = cp.end;
             last = cp.start;
         }
-        for(int i = backoff.size() - 1; i > 0; i--) {
-			resultVec[retLen].start = _graph.get(backoff[i]);
-			resultVec[retLen++].end = _graph.get(backoff[i - 1]);
+        for(int i = len - 1; i > 0; i--) {
+			tokenArr[retLen].start = _graph.getOffset(backoff[i]);
+			tokenArr[retLen++].end = _graph.getOffset(backoff[i - 1]);
         }
         return retLen;
-    }
-    void print()
-    {
-        cout<<"-----------------edges--------------------"<<endl;
-        for (int i = 0; i < _graph.size(); i ++) {
-            cout<<i<<":";
-            MinHeap<Token> & heap = _edges[i];
-            for(int j = 0; j < heap.size(); j++) {
-                cout<<heap[j]<<" ";
-            }
-            cout<<endl;
-        }
-        cout<<"------------------------------------------"<<endl;
     }
 };
 
@@ -444,13 +308,8 @@ class ShortPath
         int from;
         double val;
     };
-    Graph & _graph;
 public:
-    ShortPath(Graph & graph):_graph(graph)
-    {
-    }
-
-    int getBestPath(Token * resultVec)
+    static int getBestPath(Graph & _graph, Token * tokenArr)
     {
         // 1. initial weights
         // 2.calc weights:
@@ -468,21 +327,23 @@ public:
                 }
             }
         }
-        vector<int> backoff;
+        int backoff[rsize];
+        int len = 0;
         for(int i = rsize - 1; i > 0;) {
-            backoff.push_back(i);
+            backoff[len ++] = i;
             i = points[i].from;
         }
-        backoff.push_back(0);
+        backoff[len++] = 0;
 		int retLen = 0;
-        for(int i = backoff.size() - 1; i > 0; i--) {
-			resultVec[retLen].start = _graph.get(backoff[i]);
-			resultVec[retLen++].end = _graph.get(backoff[i - 1]);
+        for(int i = len - 1; i > 0; i--) {
+			tokenArr[retLen].start = _graph.getOffset(backoff[i]);
+			tokenArr[retLen++].end = _graph.getOffset(backoff[i - 1]);
         }
 		return retLen;
     }
 };
 
+// POS tagger
 class Tagger
 {
 protected:
@@ -529,44 +390,42 @@ public:
     }
     bool tagging(const string &utf8Str, Token * tokenArr, int arrLen) const
     {
-        vector<const Dictionary::FreqInfo *> infos;
+        assert(_dict != NULL);
+        const int strsize = utf8Str.length();
+        const Dictionary::FreqInfo * infos[strsize];
+        int infolen = 0;
         for( int i = 0; i < arrLen; i ++) {
             const Dictionary::FreqInfo * info = _dict->getFreqInfo(utf8Str,tokenArr[i].start, tokenArr[i].end);
             if(info == NULL) {
                 info = getPossibleInfo();
             }
-            infos.push_back(info);
+            infos[infolen++] = info;
+            //infos.push_back(info);
         }
-        //vector<int> bests;
-        viterbi(*_dict, infos, tokenArr, arrLen);
+        viterbi(*_dict, infos, infolen, tokenArr, arrLen);
         return true;
     }
 
     bool tagging(const vector<string> & words, vector<string>& tags) const
     {
         // prepair tag infos
-        vector<const SparseVector<int> *> infos;
+        const SparseVector<int> * infos[words.size()];
+        int infos_len = 0;
         for( int i = 0; i < words.size(); i ++) {
             const Dictionary::FreqInfo * info = _dict->getFreqInfo(words[i]);
             if(info == NULL) {
                 info = getPossibleInfo();
             }
-            infos.push_back(info);
+            infos[infos_len++] = info;
         }
-        return tagging(infos,tags);
+        return tagging(infos,infos_len,tags);
     }
 
-    bool tagging(const vector<const SparseVector<int> *> & infos, vector<string>& tags) const
+    bool tagging(const SparseVector<int> * * infos, const int infos_len, vector<string>& tags) const
     {
-        //vector<int> bests;
-        //viterbi(*_dict, infos, bests);
-        //for(int i = 0; i < bests.size(); i ++) {
-        //    tags.push_back(_dict->getWord(bests[i]));
-        //}
-        //const int sz = infos.size();
         Token tokenArr[1000];
-        viterbi(*_dict, infos, tokenArr, infos.size());
-        for(int i = 0; i < infos.size(); i ++) {
+        viterbi(*_dict, infos, infos_len, tokenArr, infos_len);
+        for(int i = 0; i < infos_len; i ++) {
             tags.push_back(_dict->getWord(tokenArr[i].pos));
         }
         return true;
@@ -645,33 +504,42 @@ class IKnife
 {
 public:
     //IKnife(const Dictionary * the_dict):dict(the_dict){}
+    IKnife():dict(NULL),pos_dict(NULL){}
     virtual ~IKnife() {}
     /*
      * split out the str, then save the (start,end) into vector.
      * @param strUtf8 : the input str to split.
-     * @param resultVec : resultVec words
+     * @param tokenArr : tokenArr words
      */
-    virtual int do_split(const string &strUtf8,int start,int endoff, Token * resultVec) const = 0;
-    int split(const string &strUtf8, Token * resultVec, int resultVecLen, bool break_down = true, bool do_ner = true) const
+    virtual int do_split(const string &strUtf8,int start,int endoff, Token * tokenArr) const = 0;
+    int split(const string &strUtf8, Token * tokenArr, int tokenArrLen, bool do_ner = false) const
     {
         static const int split_len = 60;
-        static const string puncs[] = {"。","，","!"," ","\n","！","?"};
-        static const int puncs_size = 7;
+        static const string puncs[] = {"。", "，", " ", "\n","\t" };
+        static const int puncs_size = 5;
+        static const int DELIMITER_POS = dict->getWordId("w");
+        static const int NUMBER_POS = dict->getWordId("m");
+        //static const string puncs[] = {"。", "，", " ", "\n", "！", "!", "?","？","、",",","‘","“","\"","'"};
+        //static const int puncs_size = 14;
+
         int slen = strUtf8.length();
 		int retLen = 0;
         // sentance split to litte sentance
         int start = 0;
         int cur = split_len;
-        if(break_down)
         while(cur < slen) {
             int cur_char_len =  utf8_char_len(strUtf8[cur]);
             for(int k = 0; k< puncs_size; k ++) {
                 if (equal(puncs[k], strUtf8, cur, cur_char_len)) {
-                    int partLen = do_split(strUtf8, start, cur,resultVec + retLen);
+                    int partLen = do_split(strUtf8, start, cur,tokenArr + retLen);
+                    if(do_ner){
+                        tagger.tagging(strUtf8,tokenArr+retLen,partLen);
+                    }
                     retLen += partLen;
                     // set delimiter.
-                    resultVec[retLen].start = cur;
-					resultVec[retLen++].end = cur + cur_char_len;
+                    tokenArr[retLen].start = cur;
+                    tokenArr[retLen].pos= DELIMITER_POS;
+					tokenArr[retLen++].end = cur + cur_char_len;
                     start = cur_char_len + cur;
                     cur += split_len;
                     break;
@@ -681,14 +549,79 @@ public:
         }
 
         if (start < slen) {
-            int partLen = do_split(strUtf8, start, slen,resultVec + retLen);
+            int partLen = do_split(strUtf8, start, slen,tokenArr + retLen);
+            if(do_ner){
+                tagger.tagging(strUtf8,tokenArr+retLen,partLen);
+            }
             retLen += partLen;
         }
-		assert(retLen <= resultVecLen);
+		assert(retLen <= tokenArrLen);
+        retLen = mark_numbers(strUtf8, tokenArr, retLen, NUMBER_POS);
 		return retLen;
     }
 
-    void setDict(Dictionary * pdict){dict = pdict;}
+    static int mark_numbers(const string & str, Token * arr, int len, const int NUMBER_POS){
+        static bool number_dict_inited = false;
+        static Dictionary number_dict;
+        static const int E_NUMBER = 2015031617;
+        static const int CH_NUMBER = 2015031621;
+        if(!number_dict_inited){
+            string numbers = "1234567890,.-";
+            for(int i = 0; i < numbers.length();){
+                int next = utf8_char_len(numbers[i]);
+                number_dict.addAttrFreq(numbers.substr(i,next), E_NUMBER, 1);
+                i += next;
+            }
+            numbers = "〇一二三四五六七八九十零壹贰叁肆伍陆柒捌玖拾佰仟万百千亿兆";
+            for(int i = 0; i < numbers.length();){
+                int next = utf8_char_len(numbers[i]);
+                number_dict.addAttrFreq(numbers.substr(i,next), CH_NUMBER, 1);
+                i += next;
+            }
+            number_dict_inited = true;
+        }
+        for(int i = 0; i < len; i ++){
+            bool is_number = true;
+            for(int j = arr[i].start; j < arr[i].end;){
+                int next = utf8_char_len(str[j]) + j;
+                if(!number_dict.exist(str, j, next)){
+                    is_number = false;
+                    break;
+                }
+                j = next;
+            }
+            if(is_number){
+                int next = utf8_char_len(str[arr[i].start]) + arr[i].start;
+                arr[i].pos = (*number_dict.getFreqInfo(str,arr[i].start, next))[0].id;
+            }
+        }
+
+        int retLen = 0;
+        for( int i = 0; i < len; i ++){
+            if(arr[i].pos == CH_NUMBER || arr[i].pos == E_NUMBER){
+                arr[retLen].start = arr[i].start;
+                for(int j = i+1; j < len&&arr[j].pos == arr[i].pos; j++){
+                    i = j;
+                }
+                arr[retLen].end = arr[i].end;
+                arr[retLen].pos = NUMBER_POS;
+            }else if (retLen < i){
+                arr[retLen] = arr[i];
+            }
+            retLen ++;
+        }
+        return retLen;
+    }
+
+    void setDict(const Dictionary * pdict){
+        dict = pdict;
+    }
+
+    void setPosDict(const Dictionary * pdict){
+        pos_dict = pdict;
+        tagger.setDict(pdict);
+    }
+
     void setName(const string & name)
     {
         myname = name;
@@ -699,7 +632,9 @@ public:
     }
 protected:
     const Dictionary * dict;
+    const Dictionary * pos_dict;
     string myname;
+    Tagger tagger;
 };
 
 /*
@@ -717,19 +652,19 @@ class Flycutter: public IKnife
 public:
     Flycutter(const Dictionary * refdict = NULL)
     {
-        dict = refdict;
+        setDict(refdict);
         setName("--* Lee's fly cutter: a forward max match tokenizer *--");
     }
 
-    virtual int do_split(const string &strUtf8,int start,int endoff, Token * resultVec) const 
+    virtual int do_split(const string &strUtf8,int start,int endoff, Token * tokenArr) const 
     {
 		int retLen = 0;
         for(int i = start; i < endoff; ) {
             int estr = utf8_next_estr(strUtf8,i);
             if (estr > i) {
-                //resultVec.push_back(Token(i,estr,TYPE_ESTR));
-				resultVec[retLen].start = i;
-				resultVec[retLen++].end = estr;
+                //tokenArr.push_back(Token(i,estr,TYPE_ESTR));
+				tokenArr[retLen].start = i;
+				tokenArr[retLen++].end = estr;
                 i = estr;
                 continue;
             }
@@ -743,8 +678,8 @@ public:
                     break;
                 }
             }
-			resultVec[retLen].start = i;
-			resultVec[retLen++].end = next;
+			tokenArr[retLen].start = i;
+			tokenArr[retLen++].end = next;
             i = next;
         }
 		return retLen;
@@ -766,37 +701,32 @@ class Renda: public Flycutter{
 public:
     Renda(const Dictionary * refdict = NULL)
     {
-        dict = refdict;
+        setDict(refdict);
         setName("--* renda: a backward max match tokenizer *--");
     }
 
-    virtual int do_split(const string &strUtf8,int start,int endoff, Token * resultVec) const 
+    virtual int do_split(const string &strUtf8,int start,int endoff, Token * tokenArr) const 
     {
         string inversed_str = reverse_utf8(strUtf8,start,endoff);
-        int len = Flycutter::do_split(inversed_str,0,endoff - start,resultVec);
-
-        //cout<<"inversed:"<<inversed_str.c_str()<<endl;
-        //print(resultVec,len);
-        //print(inversed_str,resultVec,len);
+        int len = Flycutter::do_split(inversed_str,0,endoff - start,tokenArr);
 
         // reverse all words's start and end offset.
         int mid = len / 2;
         int last = len - 1;
         int tmp = 0;
         for(int i = 0; i < mid; i ++){
-            tmp = endoff - resultVec[i].start;
-            resultVec[i].start = endoff -  resultVec[last - i].end;
-            resultVec[last - i].end = tmp;
-            tmp = endoff - resultVec[i].end;
-            resultVec[i].end = endoff - resultVec[last - i].start;
-            resultVec[last - i].start = tmp;
+            tmp = endoff - tokenArr[i].start;
+            tokenArr[i].start = endoff -  tokenArr[last - i].end;
+            tokenArr[last - i].end = tmp;
+            tmp = endoff - tokenArr[i].end;
+            tokenArr[i].end = endoff - tokenArr[last - i].start;
+            tokenArr[last - i].start = tmp;
         }
         if(len % 2 != 0){ // handle the middle one 
-            tmp = endoff - resultVec[mid].start;
-            resultVec[mid].start = endoff - resultVec[mid].end;
-            resultVec[mid].end = tmp;
+            tmp = endoff - tokenArr[mid].start;
+            tokenArr[mid].start = endoff - tokenArr[mid].end;
+            tokenArr[mid].end = tmp;
         }
-        //print(resultVec,len);
         return len;
     }
 };
@@ -815,20 +745,19 @@ class Paoding:public IKnife
 public:
     Paoding(const Dictionary * refdict = NULL)
     {
-        dict = refdict;
+        setDict(refdict);
         setName("--* paoding: a full words tokenizer *--");
     }
 
-    virtual int do_split(const string &strUtf8,int start,int endoff, Token * resultVec) const 
+    virtual int do_split(const string &strUtf8,int start,int endoff, Token * tokenArr) const 
     {
         int best = -1;
 		int retLen = 0;
         for(int i = start; i < endoff; ) {
             int estr = utf8_next_estr(strUtf8,i);
             if (estr > i) {
-                //resultVec.push_back(Token(i,estr,TYPE_ESTR));
-				resultVec[retLen].start = i;
-				resultVec[retLen++].end = estr;
+				tokenArr[retLen].start = i;
+				tokenArr[retLen++].end = estr;
                 i = estr;
                 continue;
             }
@@ -838,17 +767,15 @@ public:
                 j += utf8_char_len(strUtf8[j]);
                 if(dict->exist(strUtf8,i,j)) {
                     best = j;
-                    //resultVec.push_back(Token(i,j));
-					resultVec[retLen].start = i;
-					resultVec[retLen++].end = j;
+					tokenArr[retLen].start = i;
+					tokenArr[retLen++].end = j;
                 } else if(!dict->hasPrefix(strUtf8,i,j)) {
                     break;
                 }
             }
             if(best <= i) {
-                //resultVec.push_back(Token(i,next));
-				resultVec[retLen].start = i;
-				resultVec[retLen++].end = next;
+				tokenArr[retLen].start = i;
+				tokenArr[retLen++].end = next;
             }
             i = next;
         }
@@ -861,22 +788,19 @@ class Unigram:public IKnife
 public:
     Unigram(const Dictionary * refdict = NULL)
     {
-        dict = refdict;
+        setDict(refdict);
         setName("--* unigram: a unitary gram tokenizer *--");
     }
 
-    virtual int do_split(const string &strUtf8,int start,int endoff, Token * resultVec) const 
+    virtual int do_split(const string &strUtf8,int start,int endoff, Token * tokenArr) const 
     {
         Graph graph;
         graph.gen(*dict, strUtf8,start,endoff);
         graph.calcLogProb(dict->getWordFreq(WORDS_FREQ_TOTAL));
 #ifdef NSHORTPATH
-        NShortPath npath(graph, 6);
-        npath.calc();
-        return npath.getBestPath(0,resultVec);
+        return NShortPath::getBestPath(graph, tokenArr, 6);
 #else
-        ShortPath shortPath(graph);
-        return shortPath.getBestPath(resultVec);
+        return ShortPath::getBestPath(graph, tokenArr);
 #endif
     }
 };

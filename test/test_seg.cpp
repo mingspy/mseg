@@ -31,14 +31,14 @@ string testdata[] = {
 
 string speedstr =  "在所有字符集中，最知名的可能要数被称为ASCII的7位字符集了。它是美国标准信息交换代码（American Standard Code for Information Interchange）的缩写, 为美国英语通信所设计。它由128个字符组成，包括大小写字母、数字0-9、标点符号、非打印字符";
 
-void testKnife(IKnife & seg)
+void testKnife(IKnife & seg, const Dictionary * core)
 {
     cout<<"testing "<<seg.getName()<<" start"<<endl;
     Token vec[10000];
     Timer t;
     for(int i = 0; i < DATA_SIZE; i++) {
-        int len = seg.split(testdata[i],vec,10000);
-        print(testdata[i],vec, len);
+        int len = seg.split(testdata[i],vec,10000, true);
+        print(testdata[i],vec, len, core);
     }
     cout<<"used "<<t.elapsed()<<"s"<<endl;
     cout<<"---------------------------------"<<endl;
@@ -61,11 +61,15 @@ void printSegs(const Dictionary * core_dict, const Dictionary * inverse_dict)
     Renda rd(inverse_dict);
     Paoding pao(core_dict);
     Unigram ug(core_dict);
+    fc.setPosDict(core_dict);
+    rd.setPosDict(core_dict);
+    pao.setPosDict(core_dict);
+    ug.setPosDict(core_dict);
 
-    testKnife(fc);
-    testKnife(rd);
-    testKnife(ug);
-    testKnife(pao);
+    testKnife(fc, core_dict);
+    testKnife(rd, core_dict);
+    testKnife(ug, core_dict);
+    testKnife(pao, core_dict);
 }
 
 void testSegs(const Dictionary * core_dict, const Dictionary * inverse_dict)
@@ -103,9 +107,7 @@ void testNShortPath(const Dictionary * core_dict)
     Graph g;
     for(int i = 0; i < 1024; i ++) {
         g.gen(*core_dict, speedstr,0,size);
-        NShortPath npath(g,10);
-        npath.calc();
-        npath.getBestPath(0,result);
+        NShortPath::getBestPath(g,result,6);
     }
     cout<<"speed is "<<size/t.elapsed()/1024<<endl;
 }
@@ -118,8 +120,7 @@ void testShortPath(const Dictionary * core_dict)
     Graph g;
     for(int i = 0; i < 1024; i ++) {
         g.gen(*core_dict, speedstr,0,size);
-        ShortPath path(g);
-        path.getBestPath(result);
+        ShortPath::getBestPath(g,result);
     }
     cout<<"speed is "<<size/t.elapsed()/1024<<endl;
 }
@@ -194,17 +195,12 @@ int main(int argc, char ** argv)
         test_ner(&core_dict, &person_dict);
     }
     else{
-        string s = "中华人民共和国简称中国";
-        s =  "我们都会知道还是都不会知道这是一个长句子测试。在所有字符集中最知名的可能要数被称为ASCII的7位字符集了。它是美国标准信息交换代码的缩写";
-        cout<<s.c_str()<<endl;
-        Unigram r(&core_dict);
-        Token vec[10000];
-        int len = r.split(s,vec,10000);
-        cout<<"len of result:"<<len<<endl;
-        print(vec,100);
-        print(s,vec,len);
-        cout<<flush;
-
+        Renda r(&inverse_dict);
+        string str = "我们都会知道还是都不会知道这是一个长句子测试。7位电话010-62725543与一二三四五六柒";
+        Token tokens[1000];
+        r.setPosDict(&core_dict);
+        int len = r.split(str,tokens, 1000,true);
+        print(str, tokens,len, &core_dict);
     }
 
     //mseg_full_split("ddd",tks,1000);
