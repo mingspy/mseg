@@ -185,16 +185,16 @@ class Builder
     Dictionary person_dict;
     int errors;
     bool inverse;
-    void add(string word, const string & pos)
+    void add(string word, const string & pos, int freq = 1)
     {
         if(inverse) {
            word = reverse_utf8(word);
         }
         dict.addWord(word);
         if(!inverse) {
-            dict.addAttrFreq(word,pos,1);
+            dict.addAttrFreq(word,pos,freq);
         }else{
-            dict.addAttrFreq(word,-1,1);
+            dict.addAttrFreq(word,-1,freq);
         }
         words_total += 1;
         pos_total += 1;
@@ -202,6 +202,7 @@ class Builder
 public:
     Builder():pos_total(0),words_total(0),errors(0),inverse(false) {
             load_pos();
+            add_delimiters();
             person_dict.addWord("A");
             person_dict.addWord("B");
             person_dict.addWord("C");
@@ -399,6 +400,15 @@ private:
             vector<string> vec;
             split(*line," ",vec);
             dict.addWord(vec[0], atoi(vec[1].c_str()));
+        }
+    }
+
+    void add_delimiters(){
+        string delimiters = ",.?<>[]()（），。？；：’”“‘【】《》！、|·~;'\"@$^&=-+{}! \r\n\t";
+        for(int i = 0; i < delimiters.length();){
+            int len = utf8_char_len(delimiters[i]);
+            add(delimiters.substr(i,len),"w",10000);
+            i += len;
         }
     }
 };

@@ -195,11 +195,11 @@ int main(int argc, char ** argv)
         test_ner(&core_dict, &person_dict);
     }
     else{
-        Renda r(&inverse_dict);
-        string str = "我们都会知道还是都不会知道这是一个长句子测试。7位电话010-62725543与一二三四五六柒";
+        Unigram un(&core_dict);
+        string str = "2015年3月17日我的座机是010-62725543,请在19点20分5秒后拨打时按0123然后说你要给我一千一万元,或者按6789.88";
         Token tokens[1000];
-        r.setPosDict(&core_dict);
-        int len = r.split(str,tokens, 1000,true);
+        un.setPosDict(&core_dict);
+        int len = un.split(str,tokens, 1000, 1);
         print(str, tokens,len, &core_dict);
     }
 

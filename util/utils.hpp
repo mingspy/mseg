@@ -233,14 +233,18 @@ const wstring trim(const wstring& str)
     }
 }
 
-inline bool startswith(const string & str, const string & sub)
-{
+inline bool startswith(const string & str, const string & sub) {
     return str.compare(0,sub.length(),sub) == 0;
 }
+inline bool startswith(const string & str, int start, const string & sub) {
+    return str.compare(start,sub.length(),sub) == 0;
+}
 
-inline bool endswith(const string & str, const string & sub)
-{
+inline bool endswith(const string & str, const string & sub) {
     return str.compare(str.length() - sub.length(),sub.length(),sub) == 0;
+}
+inline bool endswith(const string & str, int end, const string & sub) {
+    return str.compare(end - sub.length(),sub.length(),sub) == 0;
 }
 
 inline bool equal(const string & pattern, const string & str2, int start,int len)
@@ -350,13 +354,26 @@ public:
 
 };
 
+// POS_tag_id中的词性定义
+const int  POS_UDF = 0;  // 未定义
+const int  POS_MA = 30;  // 阿拉伯数字
+const int  POS_MC = 31;  // 中文数字
+const int  POS_MP = 32;  // 电话
+const int  POS_URL = 40; // url
+const int  POS_T = 101;  // 时间
+const int  POS_NX = 112; // 外文
+const int  POS_M = 102; // 外文
+const int  POS_W = 25; // 外文
+
 namespace mingspy
 {
 struct lookup_tables {
     static const unsigned char whitespace[ 256 ]; // Whitespace table
     static const unsigned char upcase[ 256 ]; // To uppercase conversion table for ASCII characters
-    static const unsigned char estr[ 256 ];   // english and some connect chars
+    static const unsigned char estr[ 256 ];   // english character 
     static const unsigned char utf8len[ 256 ]; // english and some connect chars
+    static const unsigned char num[ 256 ]; // arbic numbers:1,2,3,4,5,6,7,8,9,0
+    static const unsigned char alnum[ 256 ]; // arbic numbers:1,2,3,4,5,6,7,8,9,0
 };
 const unsigned char lookup_tables::whitespace[ 256 ] = {
 //  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
@@ -402,10 +419,48 @@ const unsigned char lookup_tables::estr[ 256 ] = {
 //  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 0
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 1
-    0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1,     // 2
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1,     // 3
+    0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1,     // 2
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1,     // 3
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 4
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,     // 5
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1,     // 5
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 6
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,     // 7
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 8
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 9
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // A
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // B
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // C
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // D
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // E
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0      // F
+};
+const unsigned char lookup_tables::num[ 256 ] = {
+//  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 0
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 1
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0,     // 2
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,     // 3
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 4
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 5
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 6
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 7
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 8
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 9
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // A
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // B
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // C
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // D
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // E
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0      // F
+};
+const unsigned char lookup_tables::alnum[ 256 ] = {
+//  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 0
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 1
+    0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1,     // 2
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1,     // 3
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 4
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1,     // 5
     0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,     // 6
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,     // 7
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,     // 8
@@ -437,38 +492,30 @@ const unsigned char lookup_tables::utf8len[ 256 ] = {
     4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 1, 1      // F
 };
 
-inline int isnumber(const string & str, int start,int end)
-{
-    for(int i = start; i < end; i++) {
-        if(!isdigit(str[i])) return false;
-    }
-    return true;
-}
-inline int isenglish(const string & str, int start,int end)
-{
-    for(int i = start; i < end; i++) {
-        if(!isalpha(str[i])) return false;
-    }
-    return true;
-}
 
 /*
 * split out English string, http, email,numbers.
 * @return then end of English string.
 */
-inline int utf8_next_estr(const string & str, int start)
-{
-    while(lookup_tables::estr[(unsigned char)(str[start])]) {
-        start++;
-    }
+inline int utf8_next_estr(const string & str, int start) {
+    while(lookup_tables::estr[(unsigned char)(str[start])]) { start++; }
+    return start;
+}
+
+inline int utf8_next_num(const string & str, int start) {
+    while(lookup_tables::num[(unsigned char)(str[start])]) { start++; }
+    return start;
+}
+
+inline int utf8_next_alnum(const string & str, int start) {
+    while(lookup_tables::alnum[(unsigned char)(str[start])]) { start++; }
     return start;
 }
 /*
 * split out English string, http, email,numbers.
 * @return then end of English string.
 */
-inline int utf8_char_len(unsigned char start)
-{
+inline int utf8_char_len(unsigned char start) {
     return lookup_tables::utf8len[start];
 }
 

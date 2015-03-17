@@ -170,6 +170,20 @@ double viterbi( const Dictionary & dict, const SparseVector<int> * * Observs,con
     return minProb;
 }
 
+inline int next_estr_num(const string & strUtf8, int start, int * type) {
+    int estr = utf8_next_estr(strUtf8,start);
+    if (estr > start) {
+        *type = POS_NX;
+        return estr;
+    }
+    int num = utf8_next_num(strUtf8,start);
+    if (num > start) {
+        *type = POS_MA;
+        return num;
+    }
+    return start;
+}
+
 class Graph
 {
 private:
@@ -194,10 +208,8 @@ public:
         // 1. push all sigle atom word into graph
         _offs[_size++] = start;
         for(int i = start; i < endoff; ) {
-            int next = utf8_next_estr(strUtf8,i);
-            int tp = TYPE_ESTR;
+            int next = utf8_next_alnum(strUtf8,i);
             if (next <= i) {
-                tp = TYPE_ATOM;
                 next  = i + utf8_char_len(strUtf8[i]);
             }
             _offs[_size++] = next;
@@ -280,7 +292,7 @@ public:
         }
 
         int idx = 0;
-		int retLen = 0;
+        int retLen = 0;
         int last = _graph.size() - 1;
         MinHeap<Token> & endpath = _edges[last];
         if (idx >= endpath.size()) return false;
@@ -294,8 +306,8 @@ public:
             last = cp.start;
         }
         for(int i = len - 1; i > 0; i--) {
-			tokenArr[retLen].start = _graph.getOffset(backoff[i]);
-			tokenArr[retLen++].end = _graph.getOffset(backoff[i - 1]);
+            tokenArr[retLen].start = _graph.getOffset(backoff[i]);
+            tokenArr[retLen++].end = _graph.getOffset(backoff[i - 1]);
         }
         return retLen;
     }
@@ -334,12 +346,12 @@ public:
             i = points[i].from;
         }
         backoff[len++] = 0;
-		int retLen = 0;
+        int retLen = 0;
         for(int i = len - 1; i > 0; i--) {
-			tokenArr[retLen].start = _graph.getOffset(backoff[i]);
-			tokenArr[retLen++].end = _graph.getOffset(backoff[i - 1]);
+            tokenArr[retLen].start = _graph.getOffset(backoff[i]);
+            tokenArr[retLen++].end = _graph.getOffset(backoff[i - 1]);
         }
-		return retLen;
+        return retLen;
     }
 };
 
@@ -382,8 +394,7 @@ protected:
         }
     }
 public:
-    explicit Tagger(const Dictionary * dict = NULL):_dict(dict),_is_possible_gened(false)
-    {
+    explicit Tagger(const Dictionary * dict = NULL):_dict(dict),_is_possible_gened(false) {
     }
     void setDict(const Dictionary * dict = NULL){
         _dict = dict;
@@ -500,6 +511,10 @@ public:
     }
 };
 
+const int SPLIT_FLAG_NONE = 0; // do nothing extra split analysis
+const int SPLIT_FLAG_POS = 1;  // do POS tagging
+const int SPLIT_FLAG_NER = 2;  // do Named entitiy recognization
+
 class IKnife
 {
 public:
@@ -512,18 +527,18 @@ public:
      * @param tokenArr : tokenArr words
      */
     virtual int do_split(const string &strUtf8,int start,int endoff, Token * tokenArr) const = 0;
-    int split(const string &strUtf8, Token * tokenArr, int tokenArrLen, bool do_ner = false) const
+    int split(const string &strUtf8, Token * tokenArr, int tokenArrLen, int flag = 0) const
     {
         static const int split_len = 60;
         static const string puncs[] = {"。", "，", " ", "\n","\t" };
         static const int puncs_size = 5;
-        static const int DELIMITER_POS = dict->getWordId("w");
-        static const int NUMBER_POS = dict->getWordId("m");
         //static const string puncs[] = {"。", "，", " ", "\n", "！", "!", "?","？","、",",","‘","“","\"","'"};
         //static const int puncs_size = 14;
+        bool do_ner = flag & SPLIT_FLAG_NER;
+        bool do_pos = flag & SPLIT_FLAG_POS;
 
         int slen = strUtf8.length();
-		int retLen = 0;
+        int retLen = 0;
         // sentance split to litte sentance
         int start = 0;
         int cur = split_len;
@@ -532,14 +547,14 @@ public:
             for(int k = 0; k< puncs_size; k ++) {
                 if (equal(puncs[k], strUtf8, cur, cur_char_len)) {
                     int partLen = do_split(strUtf8, start, cur,tokenArr + retLen);
-                    if(do_ner){
+                    if(do_pos){
                         tagger.tagging(strUtf8,tokenArr+retLen,partLen);
                     }
                     retLen += partLen;
                     // set delimiter.
                     tokenArr[retLen].start = cur;
-                    tokenArr[retLen].pos= DELIMITER_POS;
-					tokenArr[retLen++].end = cur + cur_char_len;
+                    tokenArr[retLen].pos= POS_W;
+                    tokenArr[retLen++].end = cur + cur_char_len;
                     start = cur_char_len + cur;
                     cur += split_len;
                     break;
@@ -550,37 +565,100 @@ public:
 
         if (start < slen) {
             int partLen = do_split(strUtf8, start, slen,tokenArr + retLen);
-            if(do_ner){
+            if(do_pos){
                 tagger.tagging(strUtf8,tokenArr+retLen,partLen);
             }
             retLen += partLen;
         }
-		assert(retLen <= tokenArrLen);
-        retLen = mark_numbers(strUtf8, tokenArr, retLen, NUMBER_POS);
-		return retLen;
+        assert(retLen <= tokenArrLen);
+        retLen = mark_alpha_num(strUtf8, tokenArr, retLen);
+        return retLen;
     }
 
-    static int mark_numbers(const string & str, Token * arr, int len, const int NUMBER_POS){
+    static int mark_alpha_num(const string & str, Token * arr, int len){
         static bool number_dict_inited = false;
         static Dictionary number_dict;
-        static const int E_NUMBER = 2015031617;
-        static const int CH_NUMBER = 2015031621;
         if(!number_dict_inited){
-            string numbers = "1234567890,.-";
+            string numbers = "〇一二三四五六七八九十零壹贰叁肆伍陆柒捌玖拾佰仟万百千亿兆";
             for(int i = 0; i < numbers.length();){
                 int next = utf8_char_len(numbers[i]);
-                number_dict.addAttrFreq(numbers.substr(i,next), E_NUMBER, 1);
-                i += next;
-            }
-            numbers = "〇一二三四五六七八九十零壹贰叁肆伍陆柒捌玖拾佰仟万百千亿兆";
-            for(int i = 0; i < numbers.length();){
-                int next = utf8_char_len(numbers[i]);
-                number_dict.addAttrFreq(numbers.substr(i,next), CH_NUMBER, 1);
+                number_dict.addAttrFreq(numbers.substr(i,next), POS_MC, 1);
                 i += next;
             }
             number_dict_inited = true;
         }
         for(int i = 0; i < len; i ++){
+            int inext = utf8_next_num(str, arr[i].start);
+            if (inext == arr[i].end){
+                arr[i].pos = POS_MA;
+                // 简单规则判断是否是电话
+                int ilen = arr[i].end - arr[i].start;
+                if( ilen == 11 && str[arr[i].start] == '1' 
+                        && (str[arr[i].start + 1] > '2' && str[arr[i].start + 1] < '9')){
+                    arr[i].pos = POS_MP;
+                }else if (ilen == 12 && (str[arr[i].start + 3] == '-' || str[arr[i].start + 4] == '-')){
+                    arr[i].pos = POS_MP;
+                }
+                // 判断是否是时间
+                // 2015-03-17
+                else if(ilen == 10 && str[arr[i].start + 5] <= '1' && str[arr[i].start + 8] <= '3'
+                        &&((str[arr[i].start + 4] == '-' && str[arr[i].start + 7] == '-')
+                            || (str[arr[i].start + 4] == '/' && str[arr[i].start + 7] == '/')))
+                {
+                    arr[i].pos = POS_T;
+                } // 2015-3-17 2015-12-1
+                else if(ilen == 9&&(str[arr[i].start + 4] == '-' || str[arr[i].start + 4] == '/' ) 
+                        &&((str[arr[i].start+7] <='3'&&(str[arr[i].start+6] == '-' || str[arr[i].start+6] == '/'))
+                            ||(str[arr[i].start+5] <='3'&&(str[arr[i].start+7] == '-' || str[arr[i].start+7] == '/'))))
+                {
+                    arr[i].pos = POS_T;
+                } // 18:21:19
+                else if (ilen == 8 && str[arr[i].start + 2] == ':' && str[arr[i].start + 5] == ':'&&
+                        str[arr[i].start] <= '2' && str[arr[i].start + 3] <= '6' 
+                        && str[arr[i].start + 6] <='6'){
+                    arr[i].pos = POS_T;
+
+                } // 18:22
+                else if (ilen == 5 && str[arr[i].start + 2] == ':' && str[arr[i].start] <= '2' && str[arr[i].start + 3] <= '6' 
+                        ){
+                    arr[i].pos = POS_T;
+                }else if(i < len - 1 && ilen <= 4){
+                    int nextlen = arr[i+1].end - arr[i+1].start;
+                    if(equal("年",str,arr[i+1].start, nextlen) || 
+                       equal("月",str,arr[i+1].start, nextlen) ||
+                       equal("日",str,arr[i+1].start, nextlen) ||
+                       equal("时",str,arr[i+1].start, nextlen) ||
+                       equal("分",str,arr[i+1].start, nextlen) ||
+                       equal("秒",str,arr[i+1].start, nextlen) ||
+                       equal("点",str,arr[i+1].start, nextlen)
+                      ){
+                        arr[i].pos = POS_T;
+                    }
+                }
+                continue;
+            }
+
+            inext = utf8_next_estr(str, arr[i].start);
+            if (inext == arr[i].end){
+                arr[i].pos = POS_NX;
+                // 判断是否是url
+                int ilen = arr[i].end - arr[i].start;
+                if (ilen > 5){
+                    if(startswith(str, arr[i].start,"http:/") 
+                            ||startswith(str,arr[i].start,"www.")
+                            ||startswith(str,arr[i].start,"mail.")
+                            ||endswith(str,arr[i].end,".com")
+                            ||endswith(str,arr[i].end,".net")
+                            ||endswith(str,arr[i].end,".cn")
+                            ||endswith(str,arr[i].end,".org")
+                            ||startswith(str,arr[i].start, "ftp://")
+                      ){
+                        arr[i].pos = POS_URL;
+                    }
+                }
+                continue;
+            }
+
             bool is_number = true;
             for(int j = arr[i].start; j < arr[i].end;){
                 int next = utf8_char_len(str[j]) + j;
@@ -591,25 +669,24 @@ public:
                 j = next;
             }
             if(is_number){
-                int next = utf8_char_len(str[arr[i].start]) + arr[i].start;
-                arr[i].pos = (*number_dict.getFreqInfo(str,arr[i].start, next))[0].id;
+                arr[i].pos = POS_MC;
             }
         }
 
         int retLen = 0;
         for( int i = 0; i < len; i ++){
-            if(arr[i].pos == CH_NUMBER || arr[i].pos == E_NUMBER){
+            if(arr[i].pos == POS_MC || arr[i].pos == POS_MA){
                 arr[retLen].start = arr[i].start;
                 for(int j = i+1; j < len&&arr[j].pos == arr[i].pos; j++){
                     i = j;
                 }
                 arr[retLen].end = arr[i].end;
-                arr[retLen].pos = NUMBER_POS;
             }else if (retLen < i){
                 arr[retLen] = arr[i];
             }
             retLen ++;
         }
+
         return retLen;
     }
 
@@ -658,14 +735,13 @@ public:
 
     virtual int do_split(const string &strUtf8,int start,int endoff, Token * tokenArr) const 
     {
-		int retLen = 0;
+        int retLen = 0;
         for(int i = start; i < endoff; ) {
-            int estr = utf8_next_estr(strUtf8,i);
-            if (estr > i) {
-                //tokenArr.push_back(Token(i,estr,TYPE_ESTR));
-				tokenArr[retLen].start = i;
-				tokenArr[retLen++].end = estr;
-                i = estr;
+            int inext = utf8_next_alnum(strUtf8,i);
+            if (inext > i) {
+                tokenArr[retLen].start = i;
+                tokenArr[retLen++].end = inext;
+                i = inext;
                 continue;
             }
             int j = i + utf8_char_len(strUtf8[i]);
@@ -678,11 +754,11 @@ public:
                     break;
                 }
             }
-			tokenArr[retLen].start = i;
-			tokenArr[retLen++].end = next;
+            tokenArr[retLen].start = i;
+            tokenArr[retLen++].end = next;
             i = next;
         }
-		return retLen;
+        return retLen;
     }
 };
 
@@ -752,13 +828,13 @@ public:
     virtual int do_split(const string &strUtf8,int start,int endoff, Token * tokenArr) const 
     {
         int best = -1;
-		int retLen = 0;
+        int retLen = 0;
         for(int i = start; i < endoff; ) {
-            int estr = utf8_next_estr(strUtf8,i);
-            if (estr > i) {
-				tokenArr[retLen].start = i;
-				tokenArr[retLen++].end = estr;
-                i = estr;
+            int inext = utf8_next_alnum(strUtf8,i);
+            if (inext > i) {
+                tokenArr[retLen].start = i;
+                tokenArr[retLen++].end = inext;
+                i = inext;
                 continue;
             }
             int j = i + utf8_char_len(strUtf8[i]);
@@ -767,19 +843,19 @@ public:
                 j += utf8_char_len(strUtf8[j]);
                 if(dict->exist(strUtf8,i,j)) {
                     best = j;
-					tokenArr[retLen].start = i;
-					tokenArr[retLen++].end = j;
+                    tokenArr[retLen].start = i;
+                    tokenArr[retLen++].end = j;
                 } else if(!dict->hasPrefix(strUtf8,i,j)) {
                     break;
                 }
             }
             if(best <= i) {
-				tokenArr[retLen].start = i;
-				tokenArr[retLen++].end = next;
+                tokenArr[retLen].start = i;
+                tokenArr[retLen++].end = next;
             }
             i = next;
         }
-		return retLen;
+        return retLen;
     }
 };
 
