@@ -13,7 +13,7 @@ viterbi标注器	0.67799	0.95129	0.95129	0.95129
 
 ## 词典编译
 解压data.tar.gz
-dict 目录下进行make，
+dict 目录下运行make
 运行命令 ./builder 即可生成核心词典core.dic
 运行命令 ./builder inverse 即可生成逆向词典
 
