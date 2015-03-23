@@ -196,7 +196,7 @@ int main(int argc, char ** argv)
     }
     else{
         Unigram un(&core_dict);
-        string str = "2015年3月17日我的座机是010-62725543,请在19点20分5秒后拨打时按0123然后说你要给我一千一万元,或者按6789.88";
+        string str = "2015年3月17日我的座机是010-62725543,请在19点20分5秒后拨打时按0123然后说你要给我一千一万元,或者拨打18600806440按6789.88";
         Token tokens[1000];
         un.setPosDict(&core_dict);
         int len = un.split(str,tokens, 1000, 1);

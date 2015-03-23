@@ -150,7 +150,7 @@ int mseg_full_split(const char * str, struct Token * result, int result_len){
 } 
 
 int mseg_tagging(const char * str, struct Token * result, int result_len){
-    return 0;
+	return unigram.split(str,result,result_len, SPLIT_FLAG_POS);
 }
 
 const char * mseg_get_pos(int id){
