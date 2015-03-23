@@ -92,6 +92,10 @@ static PyObject * full_split(PyObject * self, PyObject *args){
     return CALL_MSEG_METHOD(args,mseg_full_split);
 }
 
+static PyObject * tagging(PyObject * self, PyObject *args){
+    return CALL_MSEG_METHOD(args,mseg_tagging);
+}
+
 static PyMethodDef msegMethods[] =
 {
     {"init", init, METH_VARARGS, "init and load dicts"},
@@ -99,6 +103,7 @@ static PyMethodDef msegMethods[] =
     {"backward_split", backward_split, METH_VARARGS, "backward split!"},
     {"smart_split", smart_split, METH_VARARGS, "smart split!"},
     {"full_split", full_split, METH_VARARGS, "full split!"},
+    {"tagging", tagging, METH_VARARGS, "split and pos tagging!"},
     {NULL, NULL,}
 };
 

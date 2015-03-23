@@ -32,11 +32,11 @@ int main(int argc, char ** argv)
         cout<<"building core dictionary"<<endl;
     }
     vector<string> files;
-    listFiles("../../data/people/",files);
+    listFiles("../data/people/",files);
     builder.buildFromPeopleDaily(files);
-    builder.load_udf_dict("../../data/dicts/main.txt", "UDF");
-    builder.load_udf_dict("../../data/dicts/persons.txt", "nr");
-    builder.load_udf_dict("../../data/dicts/companies.txt", "nt");
+    builder.load_udf_dict("../data/dicts/main.txt", "UDF");
+    builder.load_udf_dict("../data/dicts/persons.txt", "nr");
+    builder.load_udf_dict("../data/dicts/companies.txt", "nt");
     if(argc > 1) {
         builder.save("./inverse.dic");
     } else {
