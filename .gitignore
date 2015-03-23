@@ -60,3 +60,4 @@ test/uda.dSYM/Contents/Resources/DWARF/uda
 test/useg
 test/useg.dSYM/Contents/Resources/DWARF/useg
 util/sock.hpp
+java/libmsegjni.so
