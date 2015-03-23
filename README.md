@@ -12,6 +12,7 @@ viterbi标注器	0.67799	0.95129	0.95129	0.95129
 分词器需要知道词典位置，需要通过分词器配置文件告诉分词器词典路径。设置分词器配置文件位置的方法有两种，一是通过环境变量告诉分词器位置，如在.bash_profile中设置 export MSEG_CONF_PATH=/data0/home/xiulei/workspace/mseg/dict/mseg.conf。二是通过显示调用接口告诉分词器词典位置：seg/mseg.cpp/mseg_config_init(const char * config_path)。python和java版本都对这些接口进行了重新封装。
 
 ## 词典编译
+解压data.tar.gz
 dict 目录下进行make，
 运行命令 ./builder 即可生成核心词典core.dic
 运行命令 ./builder inverse 即可生成逆向词典
