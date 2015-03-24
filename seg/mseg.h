@@ -7,7 +7,6 @@ using namespace mingspy;
 extern "C" {
 #endif
 
-const int MIN_TOKEN_BUFSIZE = 10000;
 
 /*
  * 指定配置配置文件初始化

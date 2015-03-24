@@ -116,10 +116,11 @@ public:
     inline int bytes() const{
         return sizeof(SparseVector) + size() * sizeof(Cell);
     }
-    inline unsigned int using_mempool() const
-    {
-        return _header.using_mempool;
-    }
+
+
+    inline bool is_mempool() const{ return _header.using_mempool != NO_MEMPOOL;}
+    inline bool is_header_on_mempool() const{ return _header.using_mempool & HEADER_ON_MEMPOOL;}
+    inline bool is_cell_on_mempool() const{ return _header.using_mempool & CELL_ON_MEMPOOL;}
 
     /**
      * Sets a specific value in the instance to the given value (internal
@@ -146,7 +147,7 @@ public:
                 if(index  < size() ) {
                     memcpy(tmp + index + 1, _cells + index,(size() - index) * sizeof(Cell));
                 }
-                if (using_mempool()&CELL_ON_MEMPOOL == 0)
+                if (!is_cell_on_mempool())
                     free(_cells);
             }
 
@@ -221,11 +222,12 @@ public:
         }
         sort(ids.begin(), ids.end());
         Cell * tmp = reinterpret_cast<Cell *>(malloc(sizeof(Cell)*ids.size()));
-        for(int i = 0; i < ids.size(); i++) {
+        const int size = ids.size();
+        for(int i = 0; i < size; i++) {
             tmp[i].id = ids[i];
             tmp[i].val = getValById(tmp[i].id) + refer.getValById(tmp[i].id);
         }
-        if (using_mempool()&CELL_ON_MEMPOOL == 0) free(_cells);
+        if (!is_cell_on_mempool()) free(_cells);
         _cells = tmp;
         _header._size = ids.size();
         _header.using_mempool &= HEADER_ON_MEMPOOL;
@@ -280,15 +282,15 @@ public:
     }
 
     static void collect(SparseVector * sp){
-        if (sp->using_mempool() & ON_MEMPOOL == NO_MEMPOOL){
+        if (!sp->is_mempool()){
             delete sp;
-        }else if(sp->using_mempool() & ON_MEMPOOL == HEADER_ON_MEMPOOL){
+        }else{
             sp->clear();
         }
     }
     inline void clear()
     {
-        if (using_mempool()&CELL_ON_MEMPOOL == 0 &&_cells) free(_cells);
+        if (_cells&&!is_cell_on_mempool()) free(_cells);
         init();
     }
 private:
@@ -348,7 +350,7 @@ private:
             }
         }
 
-        if (using_mempool()&CELL_ON_MEMPOOL == 0&&_cells) {
+        if (!is_cell_on_mempool()&&_cells) {
             free(_cells);
         }
         _cells = tmp;
@@ -721,15 +723,17 @@ public:
         inline void push_back(int id, const T & val){
             _cells[_size].id = id;
             _cells[_size++].val = val;
-            if(_size == FIX_MATRIX_COL){
-                cout<<*this<<endl;
+#ifdef DEBUG
+            if(_size >= FIX_MATRIX_COL){
+                std::cerr<<__func__<<" out_of_range "<<*this<<endl;
             }
-            assert(_size < FIX_MATRIX_COL);
+#endif
+            assert(_size <= FIX_MATRIX_COL);
         }
 
         friend ostream & operator<<(ostream & out, const Row & row){
             for ( int j = 0; j < row.size(); j ++){ 
-                out<<"("<<row[j].id<<","<<row[j].val<<")";
+                out<<j<<"=("<<row[j].id<<","<<row[j].val<<") ";
             }
             return out;
         }

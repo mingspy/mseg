@@ -14,7 +14,7 @@ namespace mingspy
 
 class Estimator
 {
-private:
+public:
     vector<string> est_data;
     vector<vector<string> > est_refer;
     void prepair_estimate_data(const char * path)
@@ -52,7 +52,7 @@ private:
     }
 
 public:
-    Estimator(const char * est_datafile = "../../data/people/199806.txt")
+    Estimator(const char * est_datafile = "../data/people/199806.txt")
     {
         prepair_estimate_data(est_datafile);
         assert(est_data.size() == est_refer.size());
@@ -133,7 +133,7 @@ private:
     vector<vector<string> >  _data;
     vector<vector<string> >  _result;
 public:
-    TaggerEstimator(const string & path = "../../data/people/199801.txt")
+    TaggerEstimator(const string & path = "../data/people/199801.txt")
     {
         LineFileReader reader(path);
         string * line;

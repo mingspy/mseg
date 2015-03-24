@@ -2,11 +2,11 @@
 INCLUDE=-I../seg/ -I../util/ -I../dict/
 #LIBDIR=-L/data0/home/xiulei/workspace/mseg/seg
 #LIB=-lmseg
-#CC=g++ -O3 $(INCLUDE) $(LIB) $(LIBDIR)
-#CC=g++ -DNSHORTPATH -O3 $(INCLUDE) 
-CC=g++  $(INCLUDE) -O3
-#CC=g++ -DDEBUG -g  $(INCLUDE)
-#CC=g++ -g  $(INCLUDE)
+#CC=g++ -O3 $(INCLUDE) $(LIB) $(LIBDIR) -Wall
+#CC=g++ -DNSHORTPATH -O3 $(INCLUDE)  -Wall
+CC=g++  $(INCLUDE) -O3 -Wall
+#CC=g++ -DDEBUG -g  $(INCLUDE) -Wall
+#CC=g++ -g  $(INCLUDE) -Wall
 
 all:uda useg
 .PHONY:all

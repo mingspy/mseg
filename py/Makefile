@@ -1,4 +1,4 @@
-CC=g++
+CC=g++ -Wall
 INC=-I/usr/include/python2.6 -I/usr/lib/python2.6/config -I../seg -I../util
 COMMON=-O3 -fPIC -DNDEBUG -lpthread
 #COMMON=-g -fPIC -Wall -lpthread

@@ -119,7 +119,8 @@ void mseg_init(){
         }
     }
 
-    for (int i = 0; i < files.size(); i ++){
+    const int fSize = files.size();
+    for (int i = 0; i < fSize; i ++){
         mseg_load_user_dict(core_dict, files[i], false, false);
         if (config.getBool(KEY_ISLOAD_INVS)){
             mseg_load_user_dict(inverse_dict, files[i], true, false);
@@ -130,6 +131,10 @@ void mseg_init(){
 	paoding.setDict(&core_dict);
 	unigram.setDict(&core_dict);
     renda.setDict(&inverse_dict);
+	flycutter.setPosDict(&core_dict);
+	paoding.setPosDict(&core_dict);
+	unigram.setPosDict(&core_dict);
+    renda.setPosDict(&inverse_dict);
     cerr<<__DATE__<<" "<<__TIME__<<"|" <<__FILE__<<":"<<__LINE__<<" "<<__func__<< " end --------------"<<endl <<endl;
 }
 

@@ -250,7 +250,8 @@ inline bool endswith(const string & str, int end, const string & sub) {
 inline bool equal(const string & pattern, const string & str2, int start,int len)
 {
     int i = 0;
-    for (; i < pattern.length() && i < len && pattern[i] == str2[i+start]; i++);
+    const int pLen = pattern.length();
+    for (; i < pLen && i < len && pattern[i] == str2[i+start]; i++);
     return i == len;
 }
 

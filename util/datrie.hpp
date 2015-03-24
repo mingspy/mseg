@@ -411,7 +411,8 @@ private:
      */
     bool fitAllChildren(array_type_ base, const vector<node_u_type_> & children)
     {
-        for (int i = 0; i < children.size(); i++) {
+        const int csize = children.size();
+        for (int i = 0; i < csize; i++) {
             node_u_type_ sym = children[i];
 
             /*

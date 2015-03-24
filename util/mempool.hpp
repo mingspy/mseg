@@ -214,9 +214,9 @@ public:
 
     // Constructs empty pool with default allocator functions.
     MemoryPool( std::size_t dynamicSize = POOL_SIZE_128K )
-        : m_dynamicSize( dynamicSize )
-        , m_alloc_func(malloc)
+        : m_alloc_func(malloc)
         , m_free_func(free)
+        , m_dynamicSize( dynamicSize )
     {
         //m_static_memory = new char[ m_staticSize ];
         init();

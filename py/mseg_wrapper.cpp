@@ -33,11 +33,17 @@ using namespace std;
 PyObject *formatToken(const string &str,const Token &t)
 {
     PyObject *wd = PyDict_New();
-    string s = str.substr(t.start, t.end - t.start);
+    //string s = str.substr(t.start, t.end - t.start);
+    static const int W_LEN = 200;
+    char w[W_LEN];
+    int cpylen =  t.end - t.start ;  
+    if(cpylen > W_LEN) cpylen = W_LEN - 1;
+    memcpy(w, str.c_str() + t.start, cpylen);
+    w[cpylen] = 0;
     uki_DICT_ADD_NEW(wd,"start","i",t.start);
     uki_DICT_ADD_NEW(wd,"end","i",t.end);
     uki_DICT_ADD_NEW(wd,"pos","i",t.pos);
-    uki_DICT_ADD_NEW(wd,"word","s",s.c_str());
+    uki_DICT_ADD_NEW(wd,"word","s",w);
     return wd;
 }
 

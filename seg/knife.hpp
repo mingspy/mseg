@@ -38,6 +38,7 @@ const int TYPE_ESTR = -1000;
 const int TYPE_ATOM = -1;
 const int TYPE_IN_DICT = -2000;
 const double PROB_INFINT = DBL_MAX;
+const int MIN_TOKEN_BUFSIZE = 10000;
 
 struct Token {
 public:
@@ -188,9 +189,9 @@ class Graph
 {
 private:
     // 保存每个字的下标位置
+    FixedMatrix<double> _rows;
     int _offs[300];
     int _size;
-    FixedMatrix<double> _rows;
     inline void clear()
     {
 
@@ -220,6 +221,9 @@ public:
         for ( int i = 0; i < _size - 1; i ++) {
             for(int j = i+1; j <_size; j ++) {
                 if ((info = dict.getFreqInfo(strUtf8,_offs[i],_offs[j]))!=NULL) {
+#ifdef DEBUG
+                    cerr<<i<<":("<<_offs[i]<<","<<_offs[j]<<")->\'"<<strUtf8.substr(_offs[i],_offs[j] - _offs[i]).c_str()<<"\' in dict"<<endl;
+#endif
                     _rows.push_back(i,j,info->sum());
                 } else {
                     if (j == i + 1){
@@ -283,7 +287,8 @@ public:
             // 当前节点可到达的节点集合
             //SparseList<double> & nexts =  _graph.getVetexs(i);
             FixedMatrix<double>::Row &  nexts =  _graph[i];
-            for (int j = 0; j < paths.size(); j++) {
+            const int pSize = paths.size();
+            for (int j = 0; j < pSize; j++) {
                 for(int k = 0; k < nexts.size(); k++) {
                     double weight = paths[j].val + nexts[k].val;
                     _edges[nexts[k].id].add_if_small(Token(i,j,0,weight));
@@ -383,13 +388,15 @@ protected:
         _possible_info.clear();
         vector<int> freqs;
         double sum = 0;
-        for(int i = 0; i < _possible_natures.size(); i++) {
+        const int pSize = _possible_natures.size();
+        for(int i = 0; i < pSize; i++) {
             int freq = _dict->getWordFreq(_possible_natures[i]) + 1;
             sum += freq;
             freqs.push_back(freq);
         }
 
-        for(int i = 0; i < freqs.size(); i++) {
+        const int fSize = freqs.size();
+        for(int i = 0; i < fSize; i++) {
             _possible_info.setValById(_dict->getWordId(_possible_natures[i]), freqs[i] * 1000/sum);
         }
     }
@@ -422,7 +429,8 @@ public:
         // prepair tag infos
         const SparseVector<int> * infos[words.size()];
         int infos_len = 0;
-        for( int i = 0; i < words.size(); i ++) {
+        const int wSize = words.size();
+        for( int i = 0; i < wSize; i ++) {
             const Dictionary::FreqInfo * info = _dict->getFreqInfo(words[i]);
             if(info == NULL) {
                 info = getPossibleInfo();
@@ -530,11 +538,13 @@ public:
     int split(const string &strUtf8, Token * tokenArr, int tokenArrLen, int flag = 0) const
     {
         static const int split_len = 60;
+        static const int max_sentence_len = 890; // 300 characters
         static const string puncs[] = {"。", "，", " ", "\n","\t" };
         static const int puncs_size = 5;
         //static const string puncs[] = {"。", "，", " ", "\n", "！", "!", "?","？","、",",","‘","“","\"","'"};
         //static const int puncs_size = 14;
-        bool do_ner = flag & SPLIT_FLAG_NER;
+        
+        //bool do_ner = flag & SPLIT_FLAG_NER;
         bool do_pos = flag & SPLIT_FLAG_POS;
 
         int slen = strUtf8.length();
@@ -545,17 +555,21 @@ public:
         while(cur < slen) {
             int cur_char_len =  utf8_char_len(strUtf8[cur]);
             for(int k = 0; k< puncs_size; k ++) {
-                if (equal(puncs[k], strUtf8, cur, cur_char_len)) {
+                if (((cur-start) > max_sentence_len)||equal(puncs[k], strUtf8, cur, cur_char_len)) {
                     int partLen = do_split(strUtf8, start, cur,tokenArr + retLen);
                     if(do_pos){
                         tagger.tagging(strUtf8,tokenArr+retLen,partLen);
                     }
                     retLen += partLen;
                     // set delimiter.
-                    tokenArr[retLen].start = cur;
-                    tokenArr[retLen].pos= POS_W;
-                    tokenArr[retLen++].end = cur + cur_char_len;
-                    start = cur_char_len + cur;
+                    if ((cur-start) > max_sentence_len){
+                        start = cur;
+                    }else{
+                        tokenArr[retLen].start = cur;
+                        tokenArr[retLen].pos= POS_W;
+                        tokenArr[retLen++].end = cur + cur_char_len;
+                        start = cur_char_len + cur;
+                    }
                     cur += split_len;
                     break;
                 }
@@ -580,7 +594,8 @@ public:
         static Dictionary number_dict;
         if(!number_dict_inited){
             string numbers = "〇一二三四五六七八九十零壹贰叁肆伍陆柒捌玖拾佰仟万百千亿兆";
-            for(int i = 0; i < numbers.length();){
+            const int length = numbers.length();
+            for(int i = 0; i < length;){
                 int next = utf8_char_len(numbers[i]);
                 number_dict.addAttrFreq(numbers.substr(i,next), POS_MC, 1);
                 i += next;

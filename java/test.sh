@@ -1,1 +1,1 @@
-java -cp ./mseg-0.0.1.jar com.mingspy.Test
+java -cp ./mseg-0.0.1.jar:. Speed
