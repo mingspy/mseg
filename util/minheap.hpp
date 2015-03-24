@@ -93,11 +93,11 @@ public:
         int l = Left(i);
         int r = Right(i);
         int smallest = i;
-        if ( l < _size && A[l] < A[smallest]) {
+        if ( l < (int)_size && A[l] < A[smallest]) {
             smallest = l;
         }
 
-        if ( r < _size && A[r] < A[smallest]) {
+        if ( r < (int)_size && A[r] < A[smallest]) {
             smallest = r;
         }
 
@@ -178,7 +178,7 @@ public:
 
     T & operator[](int idx)
     {
-        assert (idx<_size); //
+        assert (idx<(int)_size); //
         return A[idx];
     }
 
@@ -239,7 +239,7 @@ public:
 
     void resize(int cap)
     {
-        if( cap > _capability) {
+        if( cap > (int)_capability) {
             T * tmp = new T[cap];
             if(A) {
                 memcpy(tmp, A, _capability * sizeof(T));

@@ -300,7 +300,7 @@ public:
         int retLen = 0;
         int last = _graph.size() - 1;
         MinHeap<Token> & endpath = _edges[last];
-        if (idx >= endpath.size()) return false;
+        if (idx >= (int)endpath.size()) return false;
         endpath.sort();
         int backoff[_esize];
         int len = 0;

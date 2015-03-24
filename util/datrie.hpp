@@ -346,7 +346,8 @@ private:
         vector<node_u_type_> children;
         findAllChildren(s, children);
 
-        for (int i = 0; i < children.size(); i++) {
+        const int csize = children.size();
+        for (int i = 0; i < csize; i++) {
             array_type_ child_old_idx = old_base + children[i];
             array_type_ child_new_idx = new_base + children[i];
             array_type_ child_base = getBase(child_old_idx);

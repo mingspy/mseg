@@ -22,7 +22,7 @@ static jobject toJavaTokenList(JNIEnv * env, const char * utf8str,
     for(int i = 0 ; i < len; i++) {
         int len = result[i].end - result[i].start;
 		if(len > 255) len = 255;
-        strncpy(word,utf8str+result[i].start, len);
+        memcpy(word,utf8str+result[i].start, len);
         word[len] = 0;
         unicode_end = utf8_to_unicode_len(utf8str,result[i].start,result[i].end) + unicode_start;
         jobject t_obj = env->NewObject(token_cls , token_costruct_id , unicode_start,

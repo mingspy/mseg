@@ -133,7 +133,7 @@ public:
                 continue;
             }
             int idx = line->find_first_of('=');
-            if(idx != string::npos) {
+            if(idx != (int)string::npos) {
                 string key = trim(line->substr(0, idx));
                 string val = trim(line->substr(idx+1));
                 cout<<"\t\tloaded "<<key.c_str()<<"="<<val.c_str()<<endl;
