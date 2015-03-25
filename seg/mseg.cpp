@@ -51,7 +51,7 @@ static void mseg_load_user_dict(Dictionary & dict, const string & file, bool is_
         split(*line, "\t",vec);
         if(vec.size() == 0) continue;
         if (is_reverse){
-            reverse(vec[0].begin(),vec[0].end());
+            vec[0] = reverse_utf8(vec[0]);
         }
         string * word = &vec[0];
         int freq = 1;

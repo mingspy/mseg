@@ -38,7 +38,7 @@ const int TYPE_ESTR = -1000;
 const int TYPE_ATOM = -1;
 const int TYPE_IN_DICT = -2000;
 const double PROB_INFINT = DBL_MAX;
-const int MIN_TOKEN_BUFSIZE = 10000;
+const int MIN_TOKEN_BUFSIZE = 3000;
 
 struct Token {
 public:
