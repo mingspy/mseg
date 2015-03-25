@@ -57,3 +57,21 @@ mseg.tagging(utf8_str)
 ## elasticsearch支持：
 把mseg-0.0.1.jar 放在 elasticsearch-1.4.2/plugins/analysis-mseg/目录下
 把词典放在 elasticsearch-1.4.2/config/mseg/目录下
+修改 elasticsearch-1.4.2/config/elasticsearch.conf, 加入mseg分词设置:
+
+index:
+  analysis:
+    analyzer:
+      mseg_full:  
+        type: org.elasticsearch.index.analysis.MsegAnalyzerProvider
+        method: full
+      mseg_smart:  
+        type: org.elasticsearch.index.analysis.MsegAnalyzerProvider
+        method: smart 
+      mseg_backward:  
+        type: org.elasticsearch.index.analysis.MsegAnalyzerProvider
+        method: backward
+
+
+contact us:
+mingspy@163.com qq:65983281 tel:18600806440 xiuleili

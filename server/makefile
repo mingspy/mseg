@@ -8,9 +8,11 @@ CC=g++  $(INCLUDE) -O3 -Wall
 #CC=g++ -DDEBUG -g  $(INCLUDE) -Wall
 #CC=g++ -g  $(INCLUDE) -Wall
 
-all:wseg_server
+all:useg
 .PHONY:all
 
+useg:test_seg.cpp ../seg/dict.hpp ../seg/knife.hpp
+	$(CC) test_seg.cpp -o useg
 wseg_server:wseg_server.c
 	g++ -o wseg_server  wseg_server.c   -I../seg/ -I../util/ -I../dict/ -I/usr/local/include -L/usr/local/lib  -lpthread
 clean:

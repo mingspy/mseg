@@ -1,3 +1,20 @@
+/*
+ * Copyright (C) 2015  xinshou_2008@qq.com
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -731,7 +748,7 @@ void *req_main(void *arg)
     char theword[256];
 	int flag;
 
-    Token tokens[1000];
+    Token tokens[30000];
 
 	pthread_detach(pthread_self());
 
@@ -782,7 +799,7 @@ void *req_main(void *arg)
 		}
 
 
-        int len = mseg_backward_split(para->data, tokens, 1000);
+        int len = mseg_backward_split(para->data, tokens, 30000);
         print(para->data, tokens,len);
         for(int ii=0; ii<len; ii++)
         {
@@ -805,6 +822,7 @@ void *req_main(void *arg)
 	        timeuse = timeuse+tpend.tv_usec-tpstart.tv_usec;
 	        timeuse=timeuse/1000000;
 	
+        OPRINT(para), "timeuse:%f\n", timeuse);
 		
 		lock_log();
 
