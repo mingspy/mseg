@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  xinshou_2008@qq.com
+ * Copyright (C) 2015  GengHongChun.  mail: xinshou_2008@qq.com
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
