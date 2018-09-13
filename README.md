@@ -1,7 +1,7 @@
 # mseg<br />
 chinese segmentor for linux version, support lucene, elasticsearch<br />
 &nbsp;&nbsp;&nbsp; C++实现的中文分词器，同时支持java、python调用，并且可以支持luncene以及elasticsearch。c++内部使用UTF8编码格式，而对于java通过JNI调用，把unicode转换成UTF8然后调用c++分词器，最后再转换会java内部使用的unicode，对于python直接使用UTF8格式。该分词器支持的算法包括前向最大切分，后向最大切分，全切分，一元统计分词。其中：<br />
-&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;速度(m/s)&nbsp;&nbsp; &nbsp;准确率&nbsp;&nbsp; &nbsp;召回率&nbsp;&nbsp; &nbsp;F1<br />
+&nbsp;&nbsp; &nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;速度(m/s)&nbsp;&nbsp; &nbsp;准确率&nbsp;&nbsp; &nbsp;召回率&nbsp;&nbsp; &nbsp;F1<br />
 前向最大切分&nbsp;&nbsp; &nbsp;11.9691&nbsp;&nbsp; &nbsp;0.943345&nbsp;&nbsp; &nbsp;0.922851&nbsp;&nbsp; &nbsp;0.932985<br />
 后向最大切分&nbsp;&nbsp; &nbsp;10.4729&nbsp;&nbsp; &nbsp;0.94745&nbsp;&nbsp; &nbsp;0.924768&nbsp;&nbsp; &nbsp;0.935971<br />
 一元&nbsp;&nbsp; &nbsp;2.40362&nbsp;&nbsp; &nbsp;0.982346&nbsp;&nbsp; &nbsp;0.967586&nbsp;&nbsp; &nbsp;0.97491<br />
@@ -75,6 +75,4 @@ index:<br />
 <br />
 ## contact us:<br />
 xiuleili&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mail: mingspy@163.com&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; qq:65983281&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; tel:18600806440<br />
-YaDongCheng&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; mail: 971596136@qq.com&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; qq:971596136&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; tel:18810079344<br />
-GengHongChun.&nbsp; mail: xinshou_2008@qq.com<br />
 <br />
